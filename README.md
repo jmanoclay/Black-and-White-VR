@@ -7,7 +7,7 @@ is all around you. Made for SteamVR (developed on a Valve Index).
 
 Always the latest version. Patch notes and older versions are on [Releases](../../releases/latest).
 
-**[💬 Join the Discord](https://discord.gg/YzWQUZSsYZ)**: new releases are announced there, and it's the place to chat, ask for help and share feedback.
+**[🌐 Website](https://jmanoclay.github.io/BW-VR-Releases/)** · **[💬 Join the Discord](https://discord.gg/YzWQUZSsYZ)**: new releases are announced there, and it's the place to chat, ask for help and share feedback.
 
 ## Install
 1. [Download **`JakeypooBWVRModInstaller.exe`**](https://github.com/jmanoclay/BW-VR-Releases/releases/latest/download/JakeypooBWVRModInstaller.exe) and run it. It keeps itself up to date.
