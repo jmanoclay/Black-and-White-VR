@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://jmanoclay.github.io/BW-VR-Releases/sitemap.xml
