@@ -3,14 +3,14 @@
 Play Lionhead's **Black & White** (2001) in virtual reality: your hand is the god hand, the land
 is all around you. Made for SteamVR (developed on a Valve Index).
 
-### [⬇ Download the installer (JakeypooBWVRModInstaller.exe)](https://github.com/jmanoclay/BW-VR-Releases/releases/latest/download/JakeypooBWVRModInstaller.exe)
+### [⬇ Download the installer (JakeypooBWVRModInstaller.exe)](https://github.com/jmanoclay/Black-and-White-VR/releases/latest/download/JakeypooBWVRModInstaller.exe)
 
 Always the latest version. Patch notes and older versions are on [Releases](../../releases/latest).
 
-**[🌐 Website](https://jmanoclay.github.io/BW-VR-Releases/)** · **[💬 Join the Discord](https://discord.gg/YzWQUZSsYZ)**: new releases are announced there, and it's the place to chat, ask for help and share feedback.
+**[🌐 Website](https://jmanoclay.github.io/Black-and-White-VR/)** · **[💬 Join the Discord](https://discord.gg/YzWQUZSsYZ)**: new releases are announced there, and it's the place to chat, ask for help and share feedback.
 
 ## Install
-1. [Download **`JakeypooBWVRModInstaller.exe`**](https://github.com/jmanoclay/BW-VR-Releases/releases/latest/download/JakeypooBWVRModInstaller.exe) and run it. It keeps itself up to date.
+1. [Download **`JakeypooBWVRModInstaller.exe`**](https://github.com/jmanoclay/Black-and-White-VR/releases/latest/download/JakeypooBWVRModInstaller.exe) and run it. It keeps itself up to date.
    It isn't code-signed yet, so Windows may say *"Windows protected your PC"*: click
    **More info**, then **Run anyway**.
 2. The installer finds your Black & White folder and checks it, step by step:

@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://jmanoclay.github.io/BW-VR-Releases/sitemap.xml
+Sitemap: https://jmanoclay.github.io/Black-and-White-VR/sitemap.xml
