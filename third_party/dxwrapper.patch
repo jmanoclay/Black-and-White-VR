@@ -1,0 +1,384 @@
+diff --git a/DDrawCompat/v0.3.2/Dll/DllMain.cpp b/DDrawCompat/v0.3.2/Dll/DllMain.cpp
+index e30a04b..3d10d58 100644
+--- a/DDrawCompat/v0.3.2/Dll/DllMain.cpp
++++ b/DDrawCompat/v0.3.2/Dll/DllMain.cpp
+@@ -231,8 +231,10 @@ void Compat32::InstallDd7to9Hooks(HMODULE hModule)
+ 		Win32::DisplayMode::installHooks();
+ 		Compat32::Log() << "Installing registry hooks";
+ 		Win32::Registry::installHooks();
+-		Compat32::Log() << "Installing Win32 hooks";
+-		Win32::WaitFunctions::installHooks();
++		// BW VR mod: no busy-wait mitigation. It put a Sleep(0) into the game's frequent time reads
++		// (GetTickCount, timeGetTime) and cost about 8% of each eye's drawing.
++		//Compat32::Log() << "Installing Win32 hooks";
++		//Win32::WaitFunctions::installHooks();
+ 		DisableProcessWindowsGhosting();
+ 	}
+ }
+diff --git a/Dllmain/dxwrapper.def b/Dllmain/dxwrapper.def
+index a0356fe..86a09be 100644
+--- a/Dllmain/dxwrapper.def
++++ b/Dllmain/dxwrapper.def
+@@ -39,6 +39,9 @@ DSoundHelp						@108
+ DirectDrawCreate				@109
+ DirectDrawCreateClipper			@110
+ DirectDrawCreateEx				@111
++DxwGetD3D9Surface				@250
++DxwSetFastDraw					@251
++DxwRingFill						@252
+ DirectDrawEnumerateA			@112
+ DirectDrawEnumerateExA			@113
+ DirectDrawEnumerateExW			@114
+diff --git a/ddraw/IDirect3DDeviceX.cpp b/ddraw/IDirect3DDeviceX.cpp
+index ad66f3d..831f202 100644
+--- a/ddraw/IDirect3DDeviceX.cpp
++++ b/ddraw/IDirect3DDeviceX.cpp
+@@ -26,6 +26,111 @@ using namespace DdrawWrapper;
+ // IUnknown functions
+ // ******************************
+ 
++extern bool g_DxwFastDraw;  // (bwvr: ddraw.cpp)
++extern bool g_DxwRingDraw;
++
++// bwvr: the indexed draws' vertices and indices appended to dynamic buffers of our own (no
++// overwrite until they wrap, then discard), drawn with DrawIndexedPrimitive, in place of
++// DrawIndexedPrimitiveUP. False: draw it the usual way.
++namespace
++{
++	struct RingBuffers
++	{
++		IDirect3DDevice9* owner = nullptr;
++		IDirect3DVertexBuffer9* vb = nullptr;
++		IDirect3DIndexBuffer9* ib = nullptr;
++		UINT vpos = 0, ipos = 0;
++		static constexpr UINT kVB = 32u << 20, kIB = 8u << 20;  // (an eye's vertices over the village: ~4.5 MB)
++		// (DxwRingFill: a block of vertices and indices put in the buffers ahead, in one lock each;
++		// draws whose arrays lie inside it draw from there without copying.)
++		const BYTE* pre_v = nullptr;
++		const BYTE* pre_i = nullptr;
++		UINT pre_vbytes = 0, pre_ibytes = 0, pre_vpos = 0, pre_ipos = 0;
++	} g_Ring;
++
++	bool RingDraw(IDirect3DDevice9* dev, D3DPRIMITIVETYPE type, const void* vertices, UINT stride, UINT minIndex, UINT numVerts, const WORD* indices, UINT indexCount, UINT primCount, HRESULT& hr)
++	{
++		RingBuffers& r = g_Ring;
++		if (r.owner != dev)
++		{
++			if (r.vb) r.vb->Release();
++			if (r.ib) r.ib->Release();
++			r = RingBuffers{};
++			if (FAILED(dev->CreateVertexBuffer(RingBuffers::kVB, D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, 0, D3DPOOL_DEFAULT, &r.vb, nullptr)) ||
++				FAILED(dev->CreateIndexBuffer(RingBuffers::kIB, D3DUSAGE_DYNAMIC | D3DUSAGE_WRITEONLY, D3DFMT_INDEX16, D3DPOOL_DEFAULT, &r.ib, nullptr)))
++			{
++				if (r.vb) r.vb->Release();
++				r = RingBuffers{};
++				return false;
++			}
++			r.owner = dev;
++		}
++		const UINT vbytes = numVerts * stride, ibytes = indexCount * sizeof(WORD);
++		// Arrays already in the buffers (DxwRingFill): no copy, no lock.
++		const BYTE* v = static_cast<const BYTE*>(vertices) + size_t(minIndex) * stride;
++		const BYTE* ix = reinterpret_cast<const BYTE*>(indices);
++		if (r.pre_v && v >= r.pre_v && v + vbytes <= r.pre_v + r.pre_vbytes && ix >= r.pre_i && ix + ibytes <= r.pre_i + r.pre_ibytes &&
++			(r.pre_vpos + UINT(v - r.pre_v)) % stride == 0)
++		{
++			dev->SetStreamSource(0, r.vb, 0, stride);
++			dev->SetIndices(r.ib);
++			hr = dev->DrawIndexedPrimitive(type, INT((r.pre_vpos + UINT(v - r.pre_v)) / stride) - INT(minIndex), minIndex, numVerts,
++				(r.pre_ipos + UINT(ix - r.pre_i)) / sizeof(WORD), primCount);
++			return true;
++		}
++		if (vbytes > RingBuffers::kVB / 4 || ibytes > RingBuffers::kIB / 4) return false;
++		UINT vpos = (r.vpos + stride - 1) / stride * stride;
++		DWORD vflags = D3DLOCK_NOOVERWRITE;
++		if (vpos + vbytes > RingBuffers::kVB) vpos = 0, vflags = D3DLOCK_DISCARD;
++		DWORD iflags = D3DLOCK_NOOVERWRITE;
++		UINT ipos = r.ipos;
++		if (ipos + ibytes > RingBuffers::kIB) ipos = 0, iflags = D3DLOCK_DISCARD;
++		if (r.pre_v && (vflags == D3DLOCK_DISCARD || iflags == D3DLOCK_DISCARD)) return false;  // (a wrap would lose the block put ahead)
++		void* p = nullptr;
++		if (FAILED(r.vb->Lock(vpos, vbytes, &p, vflags)) || !p) return false;
++		memcpy(p, static_cast<const BYTE*>(vertices) + size_t(minIndex) * stride, vbytes);
++		r.vb->Unlock();
++		p = nullptr;
++		if (FAILED(r.ib->Lock(ipos, ibytes, &p, iflags)) || !p) return false;
++		memcpy(p, indices, ibytes);
++		r.ib->Unlock();
++		dev->SetStreamSource(0, r.vb, 0, stride);
++		dev->SetIndices(r.ib);
++		// (Index i is vertex i - minIndex of what was copied: the base makes that line up.)
++		hr = dev->DrawIndexedPrimitive(type, INT(vpos / stride) - INT(minIndex), minIndex, numVerts, ipos / sizeof(WORD), primCount);
++		r.vpos = vpos + vbytes, r.ipos = ipos + ibytes;
++		return true;
++	}
++}
++
++// bwvr: puts a block of vertices (aligned for `stride`) and indices in the buffers ahead, in one
++// lock each; draws whose arrays lie inside the given ranges then draw from there. A null block
++// ends it (before the arrays are reused). False if it can't (no buffers yet, too big).
++extern "C" BOOL WINAPI DxwRingFill(const void* vertices, UINT vbytes, UINT stride, const void* indices, UINT ibytes)
++{
++	RingBuffers& r = g_Ring;
++	r.pre_v = r.pre_i = nullptr, r.pre_vbytes = r.pre_ibytes = 0;
++	if (!vertices || !indices || !r.vb || !r.ib || !stride || vbytes > RingBuffers::kVB / 2 || ibytes > RingBuffers::kIB / 2) return FALSE;
++	UINT vpos = (r.vpos + stride - 1) / stride * stride;
++	DWORD vflags = D3DLOCK_NOOVERWRITE;
++	if (vpos + vbytes > RingBuffers::kVB) vpos = 0, vflags = D3DLOCK_DISCARD;
++	UINT ipos = r.ipos;
++	DWORD iflags = D3DLOCK_NOOVERWRITE;
++	if (ipos + ibytes > RingBuffers::kIB) ipos = 0, iflags = D3DLOCK_DISCARD;
++	void* p = nullptr;
++	if (FAILED(r.vb->Lock(vpos, vbytes, &p, vflags)) || !p) return FALSE;
++	memcpy(p, vertices, vbytes);
++	r.vb->Unlock();
++	p = nullptr;
++	if (FAILED(r.ib->Lock(ipos, ibytes, &p, iflags)) || !p) return FALSE;
++	memcpy(p, indices, ibytes);
++	r.ib->Unlock();
++	r.pre_v = static_cast<const BYTE*>(vertices), r.pre_vbytes = vbytes, r.pre_vpos = vpos;
++	r.pre_i = static_cast<const BYTE*>(indices), r.pre_ibytes = ibytes, r.pre_ipos = ipos;
++	r.vpos = vpos + vbytes, r.ipos = ipos + ibytes;
++	return TRUE;
++}
++
+ HRESULT m_IDirect3DDeviceX::QueryInterface(REFIID riid, LPVOID FAR * ppvObj, DWORD DirectXVersion)
+ {
+ 	Logging::LogDebug() << __FUNCTION__ << " (" << this << ") " << riid;
+@@ -3094,7 +3199,31 @@ HRESULT m_IDirect3DDeviceX::DrawIndexedPrimitive(D3DPRIMITIVETYPE dptPrimitiveTy
+ 		SetDrawStates(dwVertexTypeDesc, dwFlags, DirectXVersion);
+ 
+ 		// Draw indexed primitive UP
+-		HRESULT hr = (*d3d9Device)->DrawIndexedPrimitiveUP(dptPrimitiveType, 0, dwVertexCount, GetNumberOfPrimitives(dptPrimitiveType, dwIndexCount), lpwIndices, D3DFMT_INDEX16, lpVertices, GetVertexStride(dwVertexTypeDesc));
++		// (bwvr: with the range of vertices the indices use. Direct3D 9 copies MinVertexIndex to
++		// MinVertexIndex + NumVertices for the draw; the game's landscape draws use a few dozen of
++		// a block's 289 vertices, once for each texture on it, and all 289 were copied every time.)
++		UINT MinIndex = 0, NumVerts = dwVertexCount;
++		if (g_DxwFastDraw)
++		{
++			WORD lo = 0xFFFF, hi = 0;
++			for (DWORD k = 0; k < dwIndexCount; k++)
++			{
++				const WORD i = lpwIndices[k];
++				lo = i < lo ? i : lo;
++				hi = i > hi ? i : hi;
++			}
++			if (lo <= hi && hi < dwVertexCount)
++			{
++				MinIndex = lo;
++				NumVerts = (UINT)(hi - lo) + 1;
++			}
++		}
++		HRESULT hr = D3D_OK;
++		if (!(g_DxwRingDraw && g_DxwFastDraw &&
++			RingDraw(*d3d9Device, dptPrimitiveType, lpVertices, GetVertexStride(dwVertexTypeDesc), MinIndex, NumVerts, lpwIndices, dwIndexCount, GetNumberOfPrimitives(dptPrimitiveType, dwIndexCount), hr)))
++		{
++			hr = (*d3d9Device)->DrawIndexedPrimitiveUP(dptPrimitiveType, MinIndex, NumVerts, GetNumberOfPrimitives(dptPrimitiveType, dwIndexCount), lpwIndices, D3DFMT_INDEX16, lpVertices, GetVertexStride(dwVertexTypeDesc));
++		}
+ 
+ 		// Handle dwFlags
+ 		RestoreDrawStates(hr, dwFlags, DirectXVersion);
+@@ -6410,6 +6539,7 @@ void m_IDirect3DDeviceX::PrepDevice()
+ 		{
+ 			(*d3d9Device)->SetTransform(entry.first, &entry.second);
+ 		}
++		if (g_DxwFastDraw) BatchStates.Matrix.clear();  // (bwvr: they were set again on every draw)
+ 	}
+ }
+ 
+@@ -6425,6 +6555,7 @@ HRESULT m_IDirect3DDeviceX::RestoreStates()
+ 	// Reset vars
+ 	RequiresStateRestore = false;
+ 	ddrawParent->SetLastDrawDevice((DWORD)this);
++	BoundTexKnown = false;  // (bwvr)
+ 
+ 	// Reset device state
+ 	ddrawParent->ApplyStateBlock();
+@@ -6677,7 +6808,12 @@ void m_IDirect3DDeviceX::SetDrawStates(DWORD dwVertexTypeDesc, DWORD& dwFlags, D
+ 		{
+ 			dwFlags |= D3DDP_DONOTLIGHT;
+ 			GetD9RenderState(D3DRS_LIGHTING, &DrawStates.rsLighting);
+-			(*d3d9Device)->SetRenderState(D3DRS_LIGHTING, FALSE);
++			// (bwvr: only when it is on; it was turned off and on around every draw)
++			DrawStates.LightingChanged = !g_DxwFastDraw || DrawStates.rsLighting != FALSE;
++			if (DrawStates.LightingChanged)
++			{
++				(*d3d9Device)->SetRenderState(D3DRS_LIGHTING, FALSE);
++			}
+ 		}
+ 		// ToDo: fix Extents see SetRenderState() implementation
+ 		//if (dwFlags & D3DDP_DONOTUPDATEEXTENTS)
+@@ -6719,8 +6855,12 @@ void m_IDirect3DDeviceX::SetDrawStates(DWORD dwVertexTypeDesc, DWORD& dwFlags, D
+ 			ddrawParent->SetRenderTargetSurface(lpCurrentRenderTargetX);
+ 		}
+ 
+-		// Always set the ZENABLE state
+-		(*d3d9Device)->SetRenderState(D3DRS_ZENABLE, DeviceStates.RenderState[D3DRS_ZENABLE].State);
++		// Always set the ZENABLE state (bwvr: when it differs)
++		DWORD ZEnable9 = 0;
++		if (!g_DxwFastDraw || FAILED((*d3d9Device)->GetRenderState(D3DRS_ZENABLE, &ZEnable9)) || ZEnable9 != DeviceStates.RenderState[D3DRS_ZENABLE].State)
++		{
++			(*d3d9Device)->SetRenderState(D3DRS_ZENABLE, DeviceStates.RenderState[D3DRS_ZENABLE].State);
++		}
+ 
+ 		// Check Multi-Sample Type
+ 		if (DeviceStates.RenderState[D3DRS_MULTISAMPLEANTIALIAS].State && lpCurrentRenderTargetX->GetMultiSampleType() == D3DMULTISAMPLE_NONE)
+@@ -6729,8 +6869,16 @@ void m_IDirect3DDeviceX::SetDrawStates(DWORD dwVertexTypeDesc, DWORD& dwFlags, D
+ 		}
+ 	}
+ 
+-	// Need to always set viewport
+-	(*d3d9Device)->SetViewport(&DeviceStates.Viewport.FixedView);
++	// Need to always set viewport (bwvr: when it differs from the device's)
++	{
++		D3DVIEWPORT9 View9 = {};
++		const D3DVIEWPORT9& Want = DeviceStates.Viewport.FixedView;
++		if (!g_DxwFastDraw || FAILED((*d3d9Device)->GetViewport(&View9)) || View9.X != Want.X || View9.Y != Want.Y || View9.Width != Want.Width ||
++			View9.Height != Want.Height || View9.MinZ != Want.MinZ || View9.MaxZ != Want.MaxZ)
++		{
++			(*d3d9Device)->SetViewport(&Want);
++		}
++	}
+ 
+ 	// Handle byte alignment
+ 	if (Config.DdrawFixByteAlignment > 1)
+@@ -6748,9 +6896,11 @@ void m_IDirect3DDeviceX::SetDrawStates(DWORD dwVertexTypeDesc, DWORD& dwFlags, D
+ 		}
+ 	}
+ 
+-	// Set device textures
++	// Set device textures (bwvr: only those that change; a stage without a texture is cleared, as the
++	// unbinding after each draw used to leave it)
+ 	for (UINT x = 0; x < D3DHAL_TSS_MAXSTAGES; x++)
+ 	{
++		IDirect3DBaseTexture9* Want = nullptr;
+ 		if (CurrentTextureSurfaceX[x])
+ 		{
+ 			// Generate MipMap levels
+@@ -6762,15 +6912,28 @@ void m_IDirect3DDeviceX::SetDrawStates(DWORD dwVertexTypeDesc, DWORD& dwFlags, D
+ 			if (UsingColorKey && CurrentTextureSurfaceX[x]->IsColorKeyTexture() && CurrentTextureSurfaceX[x]->GetD9DrawTexture())
+ 			{
+ 				dwFlags |= D3DDP_DXW_ALPHACOLORKEY;
+-				(*d3d9Device)->SetTexture(x, CurrentTextureSurfaceX[x]->GetD9DrawTexture());
++				Want = CurrentTextureSurfaceX[x]->GetD9DrawTexture();
+ 			}
+ 			// Set texture
+ 			else if (IDirect3DTexture9* pTexture9 = CurrentTextureSurfaceX[x]->GetD9Texture(); pTexture9 != nullptr)
+ 			{
+-				(*d3d9Device)->SetTexture(x, pTexture9);
++				Want = pTexture9;
++			}
++		}
++		if (!g_DxwFastDraw)
++		{
++			if (Want)
++			{
++				(*d3d9Device)->SetTexture(x, Want);
+ 			}
+ 		}
++		else if (!BoundTexKnown || BoundTex9[x] != Want)
++		{
++			(*d3d9Device)->SetTexture(x, Want);
++			BoundTex9[x] = Want;
++		}
+ 	}
++	BoundTexKnown = g_DxwFastDraw;
+ 
+ 	// Set alpha color render states
+ 	if (dwFlags & D3DDP_DXW_ALPHACOLORKEY)
+@@ -6832,9 +6995,10 @@ void m_IDirect3DDeviceX::RestoreDrawStates(HRESULT hr, DWORD dwFlags, DWORD Dire
+ 		{
+ 			(*d3d9Device)->SetRenderState(D3DRS_CLIPPING, DrawStates.rsClipping);
+ 		}
+-		if (dwFlags & D3DDP_DONOTLIGHT)
++		if ((dwFlags & D3DDP_DONOTLIGHT) && DrawStates.LightingChanged)
+ 		{
+ 			(*d3d9Device)->SetRenderState(D3DRS_LIGHTING, DrawStates.rsLighting);
++			DrawStates.LightingChanged = false;
+ 		}
+ 		//if (dwFlags & D3DDP_DONOTUPDATEEXTENTS)
+ 		//{
+@@ -6856,11 +7020,15 @@ void m_IDirect3DDeviceX::RestoreDrawStates(HRESULT hr, DWORD dwFlags, DWORD Dire
+ 			}
+ 		}
+ 	}
+-	for (UINT x = 0; x < D3DHAL_TSS_MAXSTAGES; x++)
++	// (bwvr: the textures stay bound: see SetDrawStates)
++	if (!g_DxwFastDraw)
+ 	{
+-		if (CurrentTextureSurfaceX[x])
++		for (UINT x = 0; x < D3DHAL_TSS_MAXSTAGES; x++)
+ 		{
+-			(*d3d9Device)->SetTexture(x, nullptr);
++			if (CurrentTextureSurfaceX[x])
++			{
++				(*d3d9Device)->SetTexture(x, nullptr);
++			}
+ 		}
+ 	}
+ 	if (dwFlags & D3DDP_DXW_ALPHACOLORKEY)
+diff --git a/ddraw/IDirect3DDeviceX.h b/ddraw/IDirect3DDeviceX.h
+index 19c4ca7..1a0454f 100644
+--- a/ddraw/IDirect3DDeviceX.h
++++ b/ddraw/IDirect3DDeviceX.h
+@@ -140,8 +140,15 @@ private:
+ 		DWORD ssMagFilter[D3DHAL_TSS_MAXSTAGES] = {};
+ 		float lowColorKey[4] = {};
+ 		float highColorKey[4] = {};
++		bool LightingChanged = false;  // (bwvr: lighting was on and turned off for this draw)
+ 	} DrawStates;
+ 
++	// bwvr: the textures last bound for a draw, so the same one isn't bound again (and textures stay
++	// bound after the draw: unbinding them after every draw made the driver revalidate each one).
++	// Unknown after the device's states are restored (a state block).
++	IDirect3DBaseTexture9* BoundTex9[D3DHAL_TSS_MAXSTAGES] = {};
++	bool BoundTexKnown = false;
++
+ 	// Vertex Stream
+ 	VERTEXSTREAMINFO VertexStreamInfo;
+ 
+diff --git a/ddraw/ddraw.cpp b/ddraw/ddraw.cpp
+index 12b9179..aa04879 100644
+--- a/ddraw/ddraw.cpp
++++ b/ddraw/ddraw.cpp
+@@ -1041,3 +1041,40 @@ static HRESULT DirectDrawEnumerateHandler(LPVOID lpCallback, LPVOID lpContext, D
+ 
+ 	return hr;
+ }
++
++// BW VR mod: the Direct3D 9 device and surface behind a DirectDraw surface, so the mod can copy
++// a render target into a texture shared with Direct3D 11 (for SteamVR) without a CPU readback.
++// The pointers are not AddRef'd: they stay valid while the DirectDraw surface and device live.
++// bwvr: the per-draw savings in IDirect3DDeviceX (textures left bound, states set only when they
++// change) on or off, for timing them against the original in the same view.
++bool g_DxwFastDraw = true;
++bool g_DxwRingDraw = true;  // (bwvr: DrawIndexedPrimitive from our own dynamic buffers; DxwSetFastDraw bit 2)
++extern "C" void WINAPI DxwSetFastDraw(BOOL on)
++{
++	g_DxwFastDraw = (on & 1) != 0;
++	g_DxwRingDraw = (on & 2) != 0;
++}
++
++extern "C" HRESULT WINAPI DxwGetD3D9Surface(LPDIRECTDRAWSURFACE7 lpSurface, LPDIRECT3DDEVICE9* ppDevice, LPDIRECT3DSURFACE9* ppSurface)
++{
++	if (!lpSurface || !ppDevice || !ppSurface)
++	{
++		return E_INVALIDARG;
++	}
++	m_IDirectDrawSurfaceX* lpSurfaceX = nullptr;
++	lpSurface->QueryInterface(IID_GetInterfaceX, (LPVOID*)&lpSurfaceX);
++	if (!lpSurfaceX || !lpSurfaceX->GetDDrawParent())
++	{
++		return E_NOINTERFACE;
++	}
++	ScopedCriticalSection ThreadLockDD(DdrawWrapper::GetDDCriticalSection());
++	LPDIRECT3DDEVICE9* lpDevice = lpSurfaceX->GetDDrawParent()->GetDirectD9Device();
++	LPDIRECT3DSURFACE9 lpD9Surface = lpSurfaceX->GetD9Surface();
++	if (!lpDevice || !*lpDevice || !lpD9Surface)
++	{
++		return E_FAIL;
++	}
++	*ppDevice = *lpDevice;
++	*ppSurface = lpD9Surface;
++	return S_OK;
++}

@@ -1,0 +1,24 @@
+LIBRARY ddraw
+EXPORTS
+    AcquireDDThreadLock         = AcquireDDThreadLock_stub          @1
+    CompleteCreateSysmemSurface = CompleteCreateSysmemSurface_stub  @2
+    D3DParseUnknownCommand      = D3DParseUnknownCommand_stub       @3
+    DDGetAttachedSurfaceLcl     = DDGetAttachedSurfaceLcl_stub      @4
+    DDInternalLock              = DDInternalLock_stub               @5
+    DDInternalUnlock            = DDInternalUnlock_stub             @6
+    DSoundHelp                  = DSoundHelp_stub                   @7
+    DirectDrawCreate            = DirectDrawCreate_stub             @8
+    DirectDrawCreateClipper     = DirectDrawCreateClipper_stub      @9
+    DirectDrawCreateEx          = DirectDrawCreateEx_stub           @10
+    DirectDrawEnumerateA        = DirectDrawEnumerateA_stub         @11
+    DirectDrawEnumerateExA      = DirectDrawEnumerateExA_stub       @12
+    DirectDrawEnumerateExW      = DirectDrawEnumerateExW_stub       @13
+    DirectDrawEnumerateW        = DirectDrawEnumerateW_stub         @14
+    DllCanUnloadNow             = DllCanUnloadNow_stub              @15 PRIVATE
+    DllGetClassObject           = DllGetClassObject_stub            @16 PRIVATE
+    GetDDSurfaceLocal           = GetDDSurfaceLocal_stub            @17
+    GetOLEThunkData             = GetOLEThunkData_stub              @18
+    GetSurfaceFromDC            = GetSurfaceFromDC_stub             @19
+    RegisterSpecialCase         = RegisterSpecialCase_stub          @20
+    ReleaseDDThreadLock         = ReleaseDDThreadLock_stub          @21
+    SetAppCompatData            = SetAppCompatData_stub             @22

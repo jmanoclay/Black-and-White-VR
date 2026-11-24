@@ -1,0 +1,8 @@
+build/
+out/
+*.user
+.vs/
+__pycache__/
+captures/
+*.log
+

@@ -1,0 +1,96 @@
+{
+  "default_bindings": [
+    {
+      "controller_type": "knuckles",
+      "binding_url": "bindings_knuckles.json"
+    },
+    {
+      "controller_type": "oculus_touch",
+      "binding_url": "bindings_oculus_touch.json"
+    },
+    {
+      "controller_type": "holographic_controller",
+      "binding_url": "bindings_holographic_controller.json"
+    },
+    {
+      "controller_type": "vive_cosmos_controller",
+      "binding_url": "bindings_vive_cosmos_controller.json"
+    }
+  ],
+  "actions": [
+    {
+      "name": "/actions/god/in/aim",
+      "type": "pose"
+    },
+    {
+      "name": "/actions/god/in/grip_pose",
+      "type": "pose"
+    },
+    {
+      "name": "/actions/god/in/trigger",
+      "type": "vector1"
+    },
+    {
+      "name": "/actions/god/in/squeeze",
+      "type": "vector1"
+    },
+    {
+      "name": "/actions/god/in/squeeze_click",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/god/in/a",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/god/in/b",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/god/in/stick",
+      "type": "vector2"
+    },
+    {
+      "name": "/actions/god/in/stick_click",
+      "type": "boolean"
+    },
+    {
+      "name": "/actions/god/in/skeleton_left",
+      "type": "skeleton",
+      "skeleton": "/skeleton/hand/left"
+    },
+    {
+      "name": "/actions/god/in/skeleton_right",
+      "type": "skeleton",
+      "skeleton": "/skeleton/hand/right"
+    },
+    {
+      "name": "/actions/god/out/haptic",
+      "type": "vibration"
+    }
+  ],
+  "action_sets": [
+    {
+      "name": "/actions/god",
+      "usage": "leftright"
+    }
+  ],
+  "localization": [
+    {
+      "language_tag": "en_US",
+      "/actions/god": "God hand",
+      "/actions/god/in/aim": "Aim",
+      "/actions/god/in/grip_pose": "Hand pose",
+      "/actions/god/in/trigger": "Pick up / act",
+      "/actions/god/in/squeeze": "Grab land / move",
+      "/actions/god/in/a": "A button",
+      "/actions/god/in/b": "Menu",
+      "/actions/god/in/stick": "Turn / move",
+      "/actions/god/in/stick_click": "Stick click",
+      "/actions/god/in/skeleton_left": "Left hand skeleton",
+      "/actions/god/in/skeleton_right": "Right hand skeleton",
+      "/actions/god/out/haptic": "Haptics",
+      "/actions/god/in/squeeze_click": "Grab (button grips)"
+    }
+  ]
+}

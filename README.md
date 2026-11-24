@@ -32,7 +32,40 @@ change into a **BWVR Backups** folder in the game folder, with one-click restore
 settings are never overwritten. Uninstall removes exactly the mod's files and keeps the game
 patched.
 
+## Source code
+The mod is open source under the [MIT license](LICENSE). You don't need any of it to play; it's
+here for anyone who wants to read, build or change the mod.
+
+| Folder | What |
+|---|---|
+| `src/` | The mod: a `ddraw.dll` proxy (C++, 32-bit) that the game loads. It hooks the engine (MinHook), draws each eye with the game's own 3D engine, and drives SteamVR through OpenVR. `core/` start-up, settings, logging and audio, `render/` the stereo rendering, `vr/` OpenVR, `control/` the hands, `game/` the game's own structures, `ui/` the in-headset menus, `proxy/` the DLL proxy. |
+| `config/` | `bwvr.ini` (the mod's settings, copied to the game's `bwvr\` folder) and the SteamVR Input action manifest and controller bindings. |
+| `installer/` | The installer and launcher (C#, .NET Framework 4.8): finds the game, patches it to v1.20 + Fan Patch, installs and updates the mod. See [documentation/installer.md](documentation/installer.md). |
+| `tools/` | Build, deploy and test scripts. `tools/harness/` drives the running game from Python; `tools/validate/` holds the automated tests built on it; `tools/perf/` and `tools/analysis/` are measuring tools. |
+| `third_party/` | MinHook, the OpenVR SDK, the openblack symbol list, and the patch to dxwrapper. |
+| `documentation/` | How things work: [controls](documentation/controls.md), [miracles in VR](documentation/miracles.md), [the VR interaction design](documentation/vr-interaction-design.md), [performance](documentation/performance.md), [the game's render passes](documentation/render-pass-map.md), [the installer](documentation/installer.md). |
+| `docs/` | The website. |
+
+### Building
+Windows, with Visual Studio 2022 (or the Build Tools) with the C++ x86/x64 tools, CMake
+(`C:\Program Files\CMake`), Ninja (`winget install Ninja-build.Ninja`) and Python 3.12 for the
+tools and tests.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\build.ps1             # the mod, build\RelWithDebInfo\ddraw.dll
+powershell -ExecutionPolicy Bypass -File tools\build_dxwrapper.ps1   # dxwrapper with the mod's patch (cloned next to this repo)
+powershell -ExecutionPolicy Bypass -File tools\deploy.ps1 -GameDir "D:\Games\Black & White"
+powershell -ExecutionPolicy Bypass -File installer\build.ps1         # the installer, installer\bin\
+```
+
+`tools\build.ps1 -Player` builds without the developer features, as the releases are built.
+
+Installers from 1.0.14 on ask the player once whether to count their launches (an anonymous
+random id and the mod's version, nothing else); `installer/stats/` has the Cloudflare Worker that
+counts them. If you build your own installer, point `BWVR_STATS_URL` at your own counter.
+
 ## Credits
-Black & White © Lionhead Studios / Electronic Arts; this is an unofficial fan project and ships
-none of the game's files. Fan Patch 1.42 by Matt Stevens (bwfiles.com), hosted by bwgame.net.
-The mod uses OpenVR (Valve), MinHook and dxwrapper; their licences come with the mod.
+Black & White © Lionhead Studios / Electronic Arts; this is an unofficial fan project and contains
+none of the game's files or code. Fan Patch 1.42 by Matt Stevens (bwfiles.com), hosted by
+bwgame.net. The mod uses OpenVR (Valve), MinHook, dxwrapper and the openblack project's symbol
+list; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Mod by Jakeypoo, MIT license.

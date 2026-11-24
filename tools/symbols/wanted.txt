@@ -1,0 +1,71 @@
+# Symbols exported to src/game/bw_symbols.h as constexpr addresses.
+# Format: <C++ name>  <mangled name from third_party/bw1-decomp/symbols_BW1W120.txt>
+
+# --- Main loop / frame ---
+GGame_Loop                ?Loop@GGame@@QAEXXZ
+GGame_Draw                ?Draw@GGame@@QAEXXZ
+GGame_FlipScreen          ?FlipScreen@GGame@@QAEXXZ
+GGame_Process3dEngine     ?Process3dEngine@GGame@@QAEXXZ
+GGame_ProcessGraphicsEngine ?ProcessGraphicsEngine@GGame@@QAEXII@Z
+GGame_LocalTimerSaysDoATurn ?LocalTimerSaysDoATurn@GGame@@QAEHXZ
+GGame_ProcessOneGameTurn  ?ProcessOneGameTurn@GGame@@QAEXXZ
+GGame_g_game              ?g_game@GGame@@2PAV1@A
+LHScreen_Flip             ?Flip@LHScreen@@QAEHH@Z
+GameWindowProc            ?GameWindowProc@@YGJPAUHWND__@@IIJ@Z
+
+# --- Renderer ---
+LH3DRender_StartFrame     ?StartFrame@LH3DRender@@SAXXZ
+LH3DRender_FinishFrame    ?FinishFrame@LH3DRender@@SAXXZ
+LH3DRender_SetProjMatrix  ?SetProjMatrix@LH3DRender@@QAEXPAVD3DMATRIX@@PAV2@MMM@Z
+LH3DRender_SetD3DMatrix   ?SetD3DMatrix@LH3DRender@@QAEXAAV_D3DMATRIX@IndirectX@@AAVLHMatrix@@@Z
+LH3DRender_Direct3DDevice7 ?Direct3DDevice7@LH3DRender@@2PAUIDirect3DDevice7@@A
+LH3DRender_g_d3d_world2view ?g_d3d_world2view@LH3DRender@@2ULHMatrix@@A
+LH3DRender_g_d3d_view2proj ?g_d3d_view2proj@LH3DRender@@2ULHMatrix@@A
+LH3DTech_g_camera         ?g_camera@LH3DTech@@2ULH3DCamera@@A
+
+# --- Camera ---
+GCamera_Update            ?Update@GCamera@@QAEXXZ
+GCamera_SetPositionAndFocus ?SetPositionAndFocus@GCamera@@QAEXABULHPoint@@0@Z
+GCamera_SetCameraFov      ?SetCameraFov@GCamera@@QAEXMM@Z
+
+# --- Hand / input ---
+CHand_Draw                ?Draw@CHand@@QAEXXZ
+LHMouse_UpdateCurrentPos  ?UpdateCurrentPos@LHMouse@@QAEHULHCoord@@@Z
+LHMouse_SetButtons        ?SetButtons@LHMouse@@QAEXE@Z
+GInterface_Process        ?Process@GInterface@@QAEXXZ
+
+# --- Verification anchors (RTTI type descriptors; name string at +8) ---
+RTTI_GCamera              ??_R0?AVGCamera@@@8
+RTTI_CHand                ??_R0?AVCHand@@@8
+RTTI_GGame                ??_R0?AVGGame@@@8
+
+# --- Startup compatibility ---
+DSETUP_DirectXSetupGetVersion _DSETUP_11
+
+# --- Mouse input (position comes from a polling thread, buttons from window messages) ---
+GetCursorPosClient        ?GetCursorPosClient@@YAHHPAUtagPOINT@@@Z
+
+# --- Engine camera / software transform (Phase 1 stereo) ---
+LH3DTech_g_info_transform ?g_info_transform@LH3DTech@@2UInfoTransform@@A
+LH3DTech_g_world_to_camera ?g_world_to_camera@LH3DTech@@2ULHMatrix@@A
+LH3DTech_g_world_to_clipping ?g_world_to_clipping@LH3DTech@@2ULHMatrix@@A
+LH3DTech_g_meter_width_screen_on_2 ?g_meter_width_screen_on_2@LH3DTech@@2MA
+LH3DTech_g_meter_height_screen_on_2 ?g_meter_height_screen_on_2@LH3DTech@@2MA
+LH3DTech_g_delta_time     ?g_delta_time@LH3DTech@@2HA
+LH3DTech_g_game_time_inc  ?g_game_time_inc@LH3DTech@@2IA
+LH3DTech_ProjectPoint     ?ProjectPoint@LH3DTech@@SIIPAULHPoint@@PAH1PAM@Z
+LH3DTech_UpdateCamera     ?UpdateCamera@LH3DTech@@SAXABULHPoint@@0@Z
+LH3DTech_UpdateWorldToCamera ?UpdateWorldToCamera@LH3DTech@@SIXAAULHMatrix@@AAULHPoint@@1_N@Z
+LH3DTech_UpdateViewPort   ?UpdateViewPort@LH3DTech@@SAXJJ@Z
+LH3DTech_ChangeFov        ?ChangeFov@LH3DTech@@QAEXM@Z
+g_MaxScreen               ?g_MaxScreen@@3PAMA
+
+# --- Per-frame state that must update once per frame, not once per eye pass ---
+CHand_PrepareForDrawing   ?PrepareForDrawing@CHand@@UAEXXZ
+CHand_UpdateHeldObject    ?UpdateHeldObject@CHand@@QAEXXZ
+LH3DRender_DrawTriangle   ?DrawTriangle@LH3DRender@@SAXPAUVertex3D@@KPAGK@Z
+GLandscape_Draw           ?Draw@GLandscape@@QAEXXZ
+CHand_ThrowObject         ?ThrowObject@CHand@@QAEXXZ
+CameraHelp_DrawKeyOrMouse ?DrawKeyOrMouse@CameraHelp@@SAXW4CH_ANIMTYPE@@HHPAGHHHW4KEYALIGN@@PAULH3DColor@@3H@Z
+CameraModeNew3_DrawHandTricon ?DrawHandTricon@CameraModeNew3@@SAXXZ
+CameraModeNew3_TriconDraw ?TriconDraw@CameraModeNew3@@SAXXZ

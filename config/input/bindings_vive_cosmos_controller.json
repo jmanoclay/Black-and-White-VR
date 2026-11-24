@@ -1,0 +1,136 @@
+{
+  "controller_type": "vive_cosmos_controller",
+  "name": "Black & White VR - Vive Cosmos controllers (X/Y on the left for A/B)",
+  "description": "Black & White VR - Vive Cosmos controllers (X/Y on the left for A/B)",
+  "action_manifest_version": 0,
+  "bindings": {
+    "/actions/god": {
+      "poses": [
+        {
+          "output": "/actions/god/in/aim",
+          "path": "/user/hand/left/pose/tip"
+        },
+        {
+          "output": "/actions/god/in/aim",
+          "path": "/user/hand/right/pose/tip"
+        },
+        {
+          "output": "/actions/god/in/grip_pose",
+          "path": "/user/hand/left/pose/raw"
+        },
+        {
+          "output": "/actions/god/in/grip_pose",
+          "path": "/user/hand/right/pose/raw"
+        }
+      ],
+      "haptics": [
+        {
+          "output": "/actions/god/out/haptic",
+          "path": "/user/hand/left/output/haptic"
+        },
+        {
+          "output": "/actions/god/out/haptic",
+          "path": "/user/hand/right/output/haptic"
+        }
+      ],
+      "sources": [
+        {
+          "path": "/user/hand/left/input/trigger",
+          "mode": "trigger",
+          "inputs": {
+            "pull": {
+              "output": "/actions/god/in/trigger"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/left/input/grip",
+          "mode": "button",
+          "inputs": {
+            "click": {
+              "output": "/actions/god/in/squeeze_click"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/left/input/joystick",
+          "mode": "joystick",
+          "inputs": {
+            "position": {
+              "output": "/actions/god/in/stick"
+            },
+            "click": {
+              "output": "/actions/god/in/stick_click"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/left/input/x",
+          "mode": "button",
+          "inputs": {
+            "click": {
+              "output": "/actions/god/in/a"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/left/input/y",
+          "mode": "button",
+          "inputs": {
+            "click": {
+              "output": "/actions/god/in/b"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/right/input/trigger",
+          "mode": "trigger",
+          "inputs": {
+            "pull": {
+              "output": "/actions/god/in/trigger"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/right/input/grip",
+          "mode": "button",
+          "inputs": {
+            "click": {
+              "output": "/actions/god/in/squeeze_click"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/right/input/joystick",
+          "mode": "joystick",
+          "inputs": {
+            "position": {
+              "output": "/actions/god/in/stick"
+            },
+            "click": {
+              "output": "/actions/god/in/stick_click"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/right/input/a",
+          "mode": "button",
+          "inputs": {
+            "click": {
+              "output": "/actions/god/in/a"
+            }
+          }
+        },
+        {
+          "path": "/user/hand/right/input/b",
+          "mode": "button",
+          "inputs": {
+            "click": {
+              "output": "/actions/god/in/b"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
