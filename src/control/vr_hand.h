@@ -162,18 +162,15 @@ struct TuningView {
     float unit = 10;
 };
 bool tuning(TuningView& out);  // false while it is closed
-// The controls on the back of the left wrist (shown while it faces the eyes, as a watch is looked at):
-// each button's words and place (world), lit while the fingertip is on it.
-struct WristButton {
-    std::wstring text;
-    vr::Vec3 pos;
-    bool lit = false;
-};
-struct WristView {
-    std::vector<WristButton> buttons;
-    float unit = 10;
-};
-bool wrist(WristView& out);  // false while it isn't shown
+bool object_centre(const void* object, vr::Vec3& centre);  // a thing's middle (its bounding sphere's)
+// A villager's info as the game asks for it (VillagerName::Add) in the eye pass `eye`: drawn as a label
+// standing in the world at `at` (the controls on the back of the left wrist are drawn the same way).
+void villager_label(const vr::Vec3& at, const wchar_t* text, uint32_t colour, int eye, const void* villager);
+// What the gravity gloves are on (aiming or locked: the motes about it), else null: the villagers' info is shown
+// for it alone.
+const void* gloves_target();
+// Holding a tree, the hand too high above the ground for it to be planted if let go of (it would fall).
+bool tree_falls_if_let_go();
 
 // Where the laser-mode hand belongs (world): the land point held in a drag, else where the laser
 // lands on the land; false when the laser isn't on the land.

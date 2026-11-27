@@ -277,6 +277,12 @@ void draw_hint(const wchar_t* text, float alpha);  // (below)
 // ValueSpinner::Draw's two calls of DrawTextRaw: its dark shadow, then the number. (Only the shadow
 // was known: it alone was enlarged, a big black number beside a small yellow one; player, 2026-10-31.)
 constexpr uintptr_t kSpinnerShadowReturn = 0x833C65, kSpinnerReturn = 0x833CA5;
+bool g_in_villager_info = false;  // (the villagers' info being drawn: see villager_info)
+float g_villager_info_m = 12.0f;
+bool g_villager_info_gloves = true;  // [ui] villager_info_gloves: the villagers' info only on the gravity gloves' target
+const void* g_info_villager = nullptr;  // (the villager whose info the game is asking for)
+bool g_own_villager_labels = true;  // [ui] own_villager_labels: the villagers' info as the mod's labels (VillagerName::Add)
+float g_villager_info_cos = 0.819f;  // (within 35 degrees of where the player looks: [ui] villager_info_cone_deg)
 void __fastcall draw_text_raw_detour(void* font, void*, const wchar_t* text, int count, float x, float y, float z, float size,
                                      void* colour, int flags, void* colour2, float a, float b) {
     // The game's counters (ValueSpinner::Draw), drawn at a depth in the world (z: world units
@@ -300,7 +306,7 @@ void __fastcall draw_text_raw_detour(void* font, void*, const wchar_t* text, int
             const float k = g_set.spinner_scale, width = 0.5f * size * float(count);
             x -= width * (k - 1.0f) * 0.5f, y -= size * (k - 1.0f) * 0.5f, size *= k;
         }
-    } else if (g_eye >= 0 && !g_passthrough && !g_in_help_text && text && count > 0 && z > game::info_transform().near_clip * 2.0f &&
+    } else if (g_eye >= 0 && !g_passthrough && !g_in_help_text && !g_in_villager_info && text && count > 0 && z > game::info_transform().near_clip * 2.0f &&
                g_set.world_text_scale > 1.0f && now_s() - g_menu_text_at > 0.3) {
         // Other text at a depth in the world (the creature's learning percentage over its head while
         // teaching: small and blurry, playtest 2026-10-31): larger, centred on the same place.
@@ -869,22 +875,40 @@ trace::Filter glyph_filter(unsigned long fvf, const void* verts, unsigned long c
 struct SpriteUpright {
     bool on = false;
     float cx = 0, cy = 0, c = 1, s = 0;
+    bool own_centre = false;  // (each draw turned about its own middle: the moon)
 };
 SpriteUpright g_sprite_upright;
 float g_glare_sign = 1.0f;  // (ui glare_sign: which way the glare is turned, found in the harness)
 int g_dbg_far_sprites = 0;
 unsigned g_sprites_turned = 0;
+int g_moon_log = 0;           // (debug: ui moon_log N, the moon call's next N draws)
+float g_moon_max_px = 1500.0f;  // (ui moon_max_px: the largest draw turned as the moon)
 trace::Filter upright_filter(unsigned long fvf, const void* verts, unsigned long count, size_t stride, const void** out) {
     using trace::Filter;
     if ((fvf & D3DFVF_POSITION_MASK) != D3DFVF_XYZRHW || stride < 16) return Filter::kKeep;
     const auto* base = static_cast<const uint8_t*>(verts);
     g_scratch.assign(base, base + size_t(count) * stride);
     const SpriteUpright& u = g_sprite_upright;
+    float cx = u.cx, cy = u.cy;
+    if (u.own_centre && count > 0) {
+        float x0 = 1e9f, x1 = -1e9f, y0 = 1e9f, y1 = -1e9f;
+        cx = cy = 0;
+        for (unsigned long i = 0; i < count; ++i) {
+            const float* v = reinterpret_cast<const float*>(g_scratch.data() + i * stride);
+            cx += v[0], cy += v[1];
+            x0 = std::min(x0, v[0]), x1 = std::max(x1, v[0]), y0 = std::min(y0, v[1]), y1 = std::max(y1, v[1]);
+        }
+        cx /= float(count), cy /= float(count);
+        if (g_moon_log > 0) --g_moon_log, BWLOG("ui: moon draw: %lu vertices, %.0f x %.0f px at (%.0f, %.0f), fvf %lX", count, x1 - x0, y1 - y0, cx, cy, fvf);
+        // (Only the moon's pictures: its disc and its reflection, fans of 65 points, and its glow, a square; not the
+        // sky's dome (284 points) or the band drawn in the same call, thousands of pixels long.)
+        if (count > 80 || x1 - x0 > g_moon_max_px || y1 - y0 > g_moon_max_px) return Filter::kKeep;
+    }
     for (unsigned long i = 0; i < count; ++i) {
         float* v = reinterpret_cast<float*>(g_scratch.data() + i * stride);
-        const float dx = v[0] - u.cx, dy = v[1] - u.cy;
-        v[0] = u.cx + u.c * dx - u.s * dy;
-        v[1] = u.cy + u.s * dx + u.c * dy;
+        const float dx = v[0] - cx, dy = v[1] - cy;
+        v[0] = cx + u.c * dx - u.s * dy;
+        v[1] = cy + u.s * dx + u.c * dy;
     }
     ++g_sprites_turned;
     *out = g_scratch.data();
@@ -1112,6 +1136,10 @@ void configure() {
     g_set.caption_view_deg = float(paths::ini_int(L"ui", L"caption_view_deg", 70));
     g_set.spinner_scale = float(paths::ini_int(L"ui", L"spinner_scale_percent", 200)) / 100.0f;
     g_set.world_text_scale = float(paths::ini_int(L"ui", L"world_text_scale_percent", 200)) / 100.0f;
+    g_villager_info_m = float(paths::ini_int(L"ui", L"villager_info_m", 12));
+    g_own_villager_labels = paths::ini_int(L"ui", L"own_villager_labels", 1) != 0;
+    g_villager_info_gloves = paths::ini_int(L"ui", L"villager_info_gloves", 1) != 0;
+    g_villager_info_cos = std::cos(float(paths::ini_int(L"ui", L"villager_info_cone_deg", 35)) * 3.14159265f / 180.0f);
     g_set.label_before_hand_m = float(paths::ini_int(L"ui", L"label_before_hand_cm", 15)) / 100.0f;
     g_help_panel = paths::ini_int(L"ui", L"help_panel", 1) != 0;
     g_set.screen = paths::ini_int(L"ui", L"screen", 1) != 0;
@@ -1181,7 +1209,83 @@ void __cdecl sun_glare_detour() {
     g_glare_turned += g_sprites_turned - before;
     g_sprite_upright.on = false;
 }
+// The villagers' info (Villager::DrawVillagerInfo 0x51B510, SpecialVillager's 0x71F240, virtual, thiscall): with it
+// on for all of them (GGame +0x14 bit 0x200000, the wrist's "Villager info"), only for those within [ui]
+// villager_info_m (12 m at the player's scale) and villager_info_cone_deg (35) of where the player looks, and at the game's own size, not the 2x of other world text: from
+// the teleport's height every villager in sight had it, large and stacked over the whole view (player, 2026-11-26).
+// One the player asked about alone (its own flag, +0xB5 bit 2) always has it.
+using DrawInfoFn = unsigned(__fastcall*)(void* villager, void* edx);
+DrawInfoFn o_villager_info = nullptr, o_special_info = nullptr;
+unsigned villager_info(DrawInfoFn orig, void* villager, void* edx) {
+    const char* game = *reinterpret_cast<const char* const*>(0xD0195C);
+    const bool all = game && !IsBadReadPtr(game + 0x14, 4) && (*reinterpret_cast<const uint32_t*>(game + 0x14) & 0x200000);
+    const bool own = villager && !IsBadReadPtr(static_cast<const char*>(villager) + 0xB5, 1) && (static_cast<const uint8_t*>(villager)[0xB5] & 2);
+    // On for all of them: only for the villager the gravity gloves are on (the motes about it): even near and
+    // where the player looked, they were "really obstructive", and blinked on and off at the edges (player,
+    // 2026-11-26). [ui] villager_info_gloves=0: near and where the player looks, as before.
+    if (g_eye >= 0 && all && !own && g_villager_info_gloves && villager != hand::gloves_target()) return 0;
+    if (g_eye >= 0 && all && !own && !g_villager_info_gloves && g_villager_info_m > 0) {
+        Vec3 c;
+        // (Near, and where the player looks: within 20 m all over the village, from the teleport's height, still
+        // a crowd of labels; harness, 2026-11-26.)
+        if (hand::object_centre(villager, c)) {
+            const Vec3 to = c - g_view.pos;
+            const float d = vr::length(to);
+            if (d > g_villager_info_m * hand::rig_scale() || (d > 1e-3f && vr::dot(to, g_view.rot.fwd) < d * g_villager_info_cos)) return 0;
+        }
+    }
+    g_in_villager_info = true, g_info_villager = villager;
+    const unsigned r = orig(villager, edx);
+    g_in_villager_info = false, g_info_villager = nullptr;
+    return r;
+}
+unsigned __fastcall villager_info_detour(void* v, void* edx) { return villager_info(o_villager_info, v, edx); }
+unsigned __fastcall special_info_detour(void* v, void* edx) { return villager_info(o_special_info, v, edx); }
+// VillagerName::Add (0x7629E0, static cdecl(float, LHPoint at (by value), wchar_t* text, LH3DColor* colour); its
+// result unused): the label the game would draw flat on the screen (its words, backing and arrow), drawn by the
+// mod instead, standing in the world (hand::villager_label). [ui] own_villager_labels 0: the game's.
+using VillagerNameAddFn = void*(__cdecl*)(float, float, float, float, wchar_t*, uint32_t*);
+VillagerNameAddFn o_villager_name_add = nullptr;
+void* __cdecl villager_name_add_detour(float k, float x, float y, float z, wchar_t* text, uint32_t* colour) {
+    if (!g_own_villager_labels || !text || IsBadReadPtr(text, 2)) return o_villager_name_add(k, x, y, z, text, colour);
+    hand::villager_label(Vec3{x, y, z}, text, colour && !IsBadReadPtr(colour, 4) ? *colour : 0, g_eye, g_info_villager);
+    return nullptr;
+}
+
+// The moon (fn_0086B010, from GLandAlignement::DrawSky; it reads LH3DAtmos::moonpos): its picture laid flat on
+// the screen, lined up with the screen's edges, turned with the head as it rolled (player, 2026-11-26: "the moon
+// is rotating with my head"). Each of its draws is turned about its own middle by the angle the world's up makes
+// on the screen. (ui moon_fix 0: as the game draws it; ui moon_sign: which way.)
+VoidFn o_moon = nullptr;
+bool g_moon_fix = true;
+float g_moon_sign = 1.0f;
+unsigned g_moon_calls = 0, g_moon_turned = 0;
+void __cdecl moon_detour() {
+    g_sprite_upright.on = false;
+    ++g_moon_calls;
+    if (g_moon_fix && g_eye >= 0) {
+        const float ux = g_view.rot.right.y, uy = -g_view.rot.up.y, len = std::sqrt(ux * ux + uy * uy);
+        if (len > 1e-3f) {
+            const float sn = ux / len, cs = -uy / len;
+            if (std::fabs(sn) > 0.005f || cs < 0) g_sprite_upright = {true, 0, 0, cs, g_moon_sign * sn, true};
+        }
+    }
+    const unsigned before = g_sprites_turned;
+    o_moon();
+    g_moon_turned += g_sprites_turned - before;
+    g_sprite_upright.on = false;
+    if (g_moon_calls == 200) BWLOG("ui: the moon: %u calls, %u draws turned upright", g_moon_calls, g_moon_turned);
+}
+
 bool install_hooks() {
+    if (MH_CreateHook(reinterpret_cast<void*>(0x86B010), reinterpret_cast<void*>(&moon_detour), reinterpret_cast<void**>(&o_moon)) != MH_OK)
+        BWLOG("ui: could not hook the moon's draw (it turns with the head)");
+    if (MH_CreateHook(reinterpret_cast<void*>(0x51B510), reinterpret_cast<void*>(&villager_info_detour), reinterpret_cast<void**>(&o_villager_info)) != MH_OK ||
+        MH_CreateHook(reinterpret_cast<void*>(0x71F240), reinterpret_cast<void*>(&special_info_detour), reinterpret_cast<void**>(&o_special_info)) != MH_OK)
+        BWLOG("ui: could not hook the villagers' info (shown for all in sight, large)");
+    if (MH_CreateHook(reinterpret_cast<void*>(0x7629E0), reinterpret_cast<void*>(&villager_name_add_detour),
+                      reinterpret_cast<void**>(&o_villager_name_add)) != MH_OK)
+        BWLOG("ui: could not hook VillagerName::Add (the villagers' info flat on the screen, as the game's)");
     if (MH_CreateHook(reinterpret_cast<void*>(0x86BB60), reinterpret_cast<void*>(&sun_glare_detour),
                       reinterpret_cast<void**>(&o_sun_glare)) != MH_OK)
         BWLOG("ui: could not hook the sun's glare (it stays off the sun with the head tilted)");
@@ -1461,7 +1565,9 @@ bool hint(const wchar_t* text, int group, void (*draw_original)(void*), void* ct
             BWLOG("ui: hint style learned: font %p, size %.1f, %zu passes", g_style.font, g_style.size, g_style.passes.size());
         learn_failed_logged |= !g_style.font;
     }
-    const bool hidden = !g_set.show_hidden && std::find(g_set.hidden.begin(), g_set.hidden.end(), text) != g_set.hidden.end();
+    // (And "Plant" with the hand too high for the tree to be planted: let go of there, it falls; player, 2026-11-27.)
+    const bool hidden = (!g_set.show_hidden && std::find(g_set.hidden.begin(), g_set.hidden.end(), text) != g_set.hidden.end()) ||
+                        (wcscmp(text, L"Plant") == 0 && hand::tree_falls_if_let_go());
     // How long the game has been asking for this word without a break.
     struct Asked {
         std::wstring word;
@@ -1672,9 +1778,6 @@ void draw_overlays() {
         }
         // (Drawn with the caption's words: see draw_text_raw_detour.)
     }
-    hand::WristView wv;
-    if (hand::wrist(wv))
-        for (const auto& b : wv.buttons) draw_text_at(b.text.c_str(), b.pos, wv.unit, b.lit ? 0.016f : 0.013f, b.lit ? 1.0f : 0.8f);
     hand::TuningView tv;
     if (!hand::tuning(tv)) return;
     // The panel above the other hand: its title, then a window of lines around the selected one.
@@ -1701,6 +1804,14 @@ bool command(const std::string& k, std::istringstream& in) {
     else if (what == "hint_size") in >> g_set.hint_height_m >> g_set.hint_above_m;
     else if (what == "spinner") in >> g_set.spinner_at_hand >> g_set.spinner_scale;
     else if (what == "world_text") in >> g_set.world_text_scale;
+    else if (what == "villager_info_m") in >> g_villager_info_m;
+    else if (what == "own_villager_labels") in >> g_own_villager_labels;
+    else if (what == "villager_info_gloves") in >> g_villager_info_gloves;
+    else if (what == "moon_fix") in >> g_moon_fix;
+    else if (what == "moon_sign") in >> g_moon_sign;
+    else if (what == "moon_log") in >> g_moon_log;
+    else if (what == "moon_max_px") in >> g_moon_max_px;
+    else if (what == "moon") BWLOG("ui: the moon: %u calls, %u draws turned upright", g_moon_calls, g_moon_turned);
     else if (what == "label_before_hand") in >> g_set.label_before_hand_m;
     else if (what == "screen_follow") in >> g_set.screen_follow_m;
     else if (what == "menu_width") in >> g_set.menu_width_m;

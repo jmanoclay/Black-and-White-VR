@@ -423,6 +423,40 @@ uint32_t glow_colour(uint32_t old, float k, bool cool) {
     if (!cool && std::min(255.0f, most * k) - most >= 24.0f) return pack(r * k, g * k * 0.96f, b * k * 0.85f);
     return cool ? pack(r * (1.0f - 0.9f * t), g * (1.0f - 0.4f * t), b) : pack(r, g * (1.0f - 0.25f * t), b * (1.0f - 1.3f * t));
 }
+// And light added on top (the colour beside it, +0x50, FF000000 as the lighting leaves it): the light colour
+// multiplies the texture, so it could only make it deeper, not brighter (player, 2026-11-26). [stereo] glow_add
+// (RRGGBB at the glow's strongest; 0: none).
+// The lighting doesn't write it: put back after each eye's world (glow_add_undo), not built up frame on frame.
+uint32_t g_glow_add = 0x584A2C;
+int g_glow_add_log = 3;
+struct GlowAdded {
+    uint32_t* at;
+    uint32_t was;
+};
+std::vector<GlowAdded> g_glow_added;
+void glow_add_on(uint32_t* at, float k) {
+    if (!g_glow_add || !at || IsBadWritePtr(at, 4)) return;
+    const auto added = [&](uint32_t old) {
+        const float t = std::clamp((k - 1.0f) / 0.63f, 0.0f, 1.0f);
+        uint32_t out = old & 0xFF000000u;
+        for (int s = 0; s < 24; s += 8) out |= uint32_t(std::min(255.0f, float((old >> s) & 0xFF) + float((g_glow_add >> s) & 0xFF) * t)) << s;
+        return out;
+    };
+    for (const auto& g : g_glow_added)
+        if (g.at == at) {
+            *at = added(g.was);
+            return;
+        }
+    if (g_glow_added.size() >= 16) return;
+    g_glow_added.push_back({at, *at});
+    *at = added(g_glow_added.back().was);
+    if (g_glow_add_log > 0) --g_glow_add_log, BWLOG("stereo: glow added: %08X -> %08X", g_glow_added.back().was, *at);
+}
+void glow_add_undo() {
+    for (auto it = g_glow_added.rbegin(); it != g_glow_added.rend(); ++it)
+        if (!IsBadWritePtr(it->at, 4)) *it->at = it->was;
+    g_glow_added.clear();
+}
 const void* g_lit_obj = nullptr;  // (lit up by the lighting just now: not again as it is drawn)
 ULONGLONG g_lit_ms = 0;
 // The game lights an object as it is drawn (fn_00801C90, cdecl(its place +0x38, its light colour +0x4C, +0x50):
@@ -441,6 +475,7 @@ int __cdecl light_detour(float* place, uint32_t* colour, uint32_t* other) {
             static const void* told = nullptr;
             if (told != obj3d) told = obj3d, BWLOG("stereo: glow by the lighting on %p: %08X -> %08X (other %08X)", obj3d, was, c, other ? *other : 0);
             if (c) *colour = c, hand::glow_seen();
+            if (c) glow_add_on(other, k);
         }
     }
     return r;
@@ -459,7 +494,7 @@ void __fastcall add_for_drawing_detour(void* g3d, void* object) {
         if (k > 0 && told != g3d) told = g3d, BWLOG("stereo: glow as it is drawn on %p (thing %p): %08X -> %08X", g3d, object, old, lit);
     }
     if (!lit) col = nullptr;  // (none to raise here: perhaps the lighting's, light_detour)
-    if (col) *col = lit, hand::glow_seen();
+    if (col) *col = lit, hand::glow_seen(), glow_add_on(reinterpret_cast<uint32_t*>(static_cast<char*>(g3d) + 0x50), k);
     add_for_drawing_inner(g3d, object, _ReturnAddress());  // (its caller: trees are told apart by it)
     if (col) *col = old;
 }
@@ -3087,6 +3122,7 @@ void __fastcall process3d_detour(void* game, void*) {
         g_current_eye = -1;
         ui::set_eye_pass(-1, nullptr);
         g_current_eye_for_billboards = -1;
+        glow_add_undo();  // (the glow's added light: drawn by now)
         hand::draw(device, eye_view(e));
         // The comfort vignette, over everything in the eye while the player is moved.
         if (const int level_v = hand::comfort_vignette(); level_v > 0 && g_vignette > 0.01f && !cinema) {
@@ -3447,6 +3483,7 @@ void apply_command(const std::string& line) {
     else if (k == "temple_mouse_log") in >> g_temple_mouse_log;
     else if (k == "tree_alpha_log") in >> g_tree_alpha_log;
     else if (k == "same_drops") in >> g_same_drops;
+    else if (k == "glow_add") in >> std::hex >> g_glow_add >> std::dec, g_glow_add_log = 3;
     else if (k == "size_by_place") in >> g_size_by_place;
     else if (k == "dxw_fast") {  // debug: dxwrapper's per-draw savings on or off (DxwSetFastDraw, our patch)
         int on = 1;

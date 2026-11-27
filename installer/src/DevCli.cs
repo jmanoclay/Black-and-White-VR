@@ -117,6 +117,13 @@ namespace BwVrSetup
                             f.Activate(); f.OpenModMenu();
                             for (int k = 0; k < 20; k++) { System.Windows.Forms.Application.DoEvents(); System.Threading.Thread.Sleep(25); }
                         }
+                        // BWVR_SHOT_FIND=<text>: the shown tab scrolled to that text (from the screen).
+                        string find = Environment.GetEnvironmentVariable("BWVR_SHOT_FIND");
+                        if (!string.IsNullOrEmpty(find))
+                        {
+                            f.TopMost = true; f.Activate(); f.ScrollShownTab(find); // on top: the capture is of the screen
+                            for (int k = 0; k < 20; k++) { System.Windows.Forms.Application.DoEvents(); System.Threading.Thread.Sleep(25); }
+                        }
                         if (screen)
                         {
                             var wh = rs.Split('x');
@@ -132,7 +139,7 @@ namespace BwVrSetup
                         }
                         using (var bmp = new System.Drawing.Bitmap(f.Width, f.Height))
                         {
-                            if (screen || Environment.GetEnvironmentVariable("BWVR_SHOT_MENU") == "1")
+                            if (screen || !string.IsNullOrEmpty(find) || Environment.GetEnvironmentVariable("BWVR_SHOT_MENU") == "1")
                                 using (var g = System.Drawing.Graphics.FromImage(bmp)) g.CopyFromScreen(f.Left, f.Top, 0, 0, bmp.Size);
                             else f.DrawToBitmap(bmp, new System.Drawing.Rectangle(0, 0, f.Width, f.Height));
                             bmp.Save(a[1], System.Drawing.Imaging.ImageFormat.Png);

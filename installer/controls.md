@@ -5,10 +5,10 @@ Your main hand (the right, unless you change it in the game menu's VR Options) i
 ## Moving around
 | Control | Does |
 |---|---|
-| Other hand's stick | Fly, relative to where you face. Faster the higher up you are. |
+| Other hand's stick | Fly, relative to where you face. Faster the higher up you are. You keep your height above the land, up over hills and down into valleys. |
 | Main hand's stick left / right | Turn: in snaps, or smoothly (set in VR Options). |
 | Main hand's stick up / down | Rise and descend. |
-| Hold A, then let go | With **Teleport movement** on in VR Options: aim an energy arc at the land, and let go to be there, high above the ground like the flat game's view. Reach things below with the gravity gloves, or scoop from fields and stores. |
+| Hold A, then let go | With **Teleport movement** on in VR Options: aim an energy arc at the land, and let go to be there, high above the ground like the flat game's view. Reach things below with the gravity gloves, or scoop from fields and stores. **Aimed at your creature** the line turns pale blue: you land in front of it, within reach to pet or slap. |
 | Both triggers held, on nothing | With the two-hand grab turned on in VR Options: grab the world with both hands, move it and turn it. |
 | Laser: trigger held on the land | Drag the land. |
 | Laser: two quick trigger pulls on the land | Travel to that spot. |
@@ -17,13 +17,13 @@ Your main hand (the right, unless you change it in the game menu's VR Options) i
 ## The god hand
 | Control | Does |
 |---|---|
-| Trigger held, or the grip | Pick up what your palm touches, or what is on the ground just below the hand. Things flying past can be caught. |
+| Trigger held, or the grip | Pick up what your palm touches, or what is on the ground just below the hand. Things flying past can be caught. What the hand would pick up or act on lights up. |
 | Gravity gloves: point an open hand at something out of reach, grip, then flick your hand back | Warm motes rise around what you point at (a villager, an animal, a rock, a tree, even something flying). Grip to lock on, flick back, and it flies to your hand. Only things in view and in your influence. On or off in VR Options. |
-| Let go | Put it down. High above the ground it falls (a tree is planted where it lands); with a fast swing it's thrown, at your hand's speed. A hand that has stopped doesn't throw. |
+| Let go | Put it down. High above the ground it falls. A tree held roughly upright is stood up straight and planted where it lands, from up to 12 m above the ground (the hand shows "Plant"); held sideways, or from higher, it falls over. With a fast swing it's thrown, at your hand's speed. A hand that has stopped doesn't throw. |
 | Carry a grown villager over a field, a tree or a building | Soft motes drift down to a pool of light, in the colour of the job it will take. Let go there to make it a disciple. |
 | Trigger, a quick tap | Interact: tap a scroll (also one beside a tree), a sign, the temple door, whatever the game names. |
 | A | Switch to the laser and back, to reach far away. While carrying: send the hand out along the laser, and call it back. (With Teleport movement on, A teleports instead.) |
-| Hand on your creature | Rub slowly to pet it. A fast swipe slaps it. |
+| Hand on your creature | Rub slowly to pet it. A real swing slaps it. Not while you hold the teleport button. |
 | Hold something up to your creature | It comes and takes it from you. |
 | Shake the hand left and right | Drop the leash, or a charged miracle. |
 | Trigger held in a store's pile or a field, or above it | Scoop up wood or food, also from teleport height (a light tick says it's in reach); take the hand out to stop. |
@@ -43,7 +43,14 @@ Your main hand (the right, unless you change it in the game menu's VR Options) i
 |---|---|
 | Carry a scaffold | Its blueprint shows on the land below your hand. |
 | Twist your wrist | Turn the blueprint. |
-| Let go gently | Build it there. Touching another scaffold, they join. |
+| Let go gently | Build it there, up to 20 m above the ground. Touching another scaffold, they join. |
+
+## On your wrist
+| Control | Does |
+|---|---|
+| Turn the back of your left wrist toward your eyes, as you'd look at a watch | Buttons rise over the back of your hand: **Pause** / **Resume**, **Slower** · speed · **Faster**, and **Villager info** on or off. Your main hand points while they're up, with a gold dot at the fingertip. |
+| Poke a button with the gold dot | Press it: it goes in and turns gold. Draw the finger back out before pressing it again. While paused, nothing can be picked up. |
+| Villager info on, gravity gloves aimed at a villager | Their info shows on a label over them, upright and easy to read. |
 
 ## Your creature on the leash
 | Control | Does |

@@ -8,9 +8,9 @@ using System.Windows.Forms;
 [assembly: AssemblyTitle("Jakeypoo's Black & White VR Mod Installer")] // the file description: what Task Manager shows
 [assembly: AssemblyProduct("Jakeypoo's Black & White VR Mod")]
 [assembly: AssemblyDescription("Installs the Black & White VR mod and launches the game in SteamVR")]
-[assembly: AssemblyVersion("1.0.18.0")]
-[assembly: AssemblyFileVersion("1.0.18.0")]
-[assembly: AssemblyInformationalVersion("1.0.18")]
+[assembly: AssemblyVersion("1.0.19.0")]
+[assembly: AssemblyFileVersion("1.0.19.0")]
+[assembly: AssemblyInformationalVersion("1.0.19")]
 [assembly: TargetFramework(".NETFramework,Version=v4.8", FrameworkDisplayName = ".NET Framework 4.8")]
 
 namespace BwVrSetup

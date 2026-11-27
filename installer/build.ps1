@@ -15,8 +15,10 @@ $out = Join-Path $here "bin"
 New-Item -ItemType Directory -Force $out | Out-Null
 $refs = "System.dll","System.Core.dll","System.Drawing.dll","System.Windows.Forms.dll","System.IO.Compression.dll",
         "System.IO.Compression.FileSystem.dll","System.Web.Extensions.dll","Microsoft.VisualBasic.dll" | ForEach-Object { "/r:$fw\$_" }
+# Pictures for the VR features tab (res\features\*.jpg, *.png), built in as BwVrSetup.img.<name>.
+$imgs = Get-ChildItem (Join-Path $here "res\features") -Include *.jpg,*.png -Recurse -ErrorAction SilentlyContinue | ForEach-Object { "/resource:$($_.FullName),BwVrSetup.img.$($_.Name)" }
 $src = Get-ChildItem (Join-Path $here "src") -Filter *.cs -Recurse | ForEach-Object { $_.FullName }
 & $csc /nologo /noconfig /target:winexe /platform:x86 /optimize+ /langversion:7.3 /utf8output /warnaserror+ `
-    "/out:$out\JakeypooBWVRModInstaller.exe" "/win32manifest:$here\res\app.manifest" "/win32icon:$here\res\app.ico" "/resource:$here\controls.md,BwVrSetup.controls.md" "/resource:$here\features.md,BwVrSetup.features.md" @refs @src
+    "/out:$out\JakeypooBWVRModInstaller.exe" "/win32manifest:$here\res\app.manifest" "/win32icon:$here\res\app.ico" "/resource:$here\controls.md,BwVrSetup.controls.md" "/resource:$here\features.md,BwVrSetup.features.md" @refs @imgs @src
 if ($LASTEXITCODE -ne 0) { throw "build failed" }
 Write-Host "built: $out\JakeypooBWVRModInstaller.exe"

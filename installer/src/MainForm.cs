@@ -19,7 +19,7 @@ namespace BwVrSetup
         readonly StatusRow rowMod = new StatusRow("Black & White VR mod");
         readonly RichTextBox notes = new RichTextBox();
         readonly RichTextBox controls = new RichTextBox();
-        readonly RichTextBox features = new RichTextBox();
+        readonly RichTextBox features = new PictureTextBox(); // can show the built-in pictures
         readonly RichTextBox issues = new RichTextBox();
         readonly TabStrip tabs = new TabStrip();
         string controlsShownFrom;
@@ -37,11 +37,35 @@ namespace BwVrSetup
         // Shown in the order patch notes, known issues, VR features, controls.
         static readonly int[] TabPosition = { 0, 3, 2, 1 };
 
+        int featuresWidth = -1;
+        void RenderFeatures()
+        {
+            if (!features.IsHandleCreated || features.ClientSize.Width == featuresWidth) return;
+            featuresWidth = features.ClientSize.Width;
+            features.Clear();
+            Notes.RenderPage(features, BuiltIn("BwVrSetup.features.md"));
+            features.SelectionStart = 0; features.ScrollToCaret();
+        }
+
+        // For screenshots: the shown tab scrolled so that the text is at the top.
+        internal void ScrollShownTab(string text)
+        {
+            foreach (var box in new[] { notes, controls, features, issues })
+            {
+                if (!box.Visible) continue;
+                int at = box.Text.IndexOf(text, StringComparison.Ordinal);
+                if (at < 0) return;
+                box.SelectionStart = box.TextLength; box.ScrollToCaret(); // to the end first, so the text lands at the top
+                box.SelectionStart = at; box.SelectionLength = 0; box.ScrollToCaret();
+            }
+        }
+
         internal void ShowTab(int i, bool remember = false)
         {
             if (i < 0 || i > 3) i = 0;
             notes.Visible = i == 0; controls.Visible = i == 1; features.Visible = i == 2; issues.Visible = i == 3;
             tabs.Selected = TabPosition[i];
+            if (i == 2) RenderFeatures(); // drawn when first seen (needs its box on screen)
             if (remember && Settings.Current.Tab != i) { Settings.Current.Tab = i; Settings.Current.Save(); }
         }
         readonly Label status = new Label();
@@ -70,7 +94,7 @@ namespace BwVrSetup
             // After a drag ends, or on maximise/restore, repaint everything once more.
             FormWindowState lastState = WindowState;
             ResizeEnd += (s, e) => Invalidate(true);
-            SizeChanged += (s, e) => { if (WindowState != lastState) { lastState = WindowState; Invalidate(true); } };
+            SizeChanged += (s, e) => { if (WindowState != lastState) { lastState = WindowState; Invalidate(true); RenderFeatures(); } };
             StartPosition = FormStartPosition.CenterScreen;
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
 
@@ -116,8 +140,10 @@ namespace BwVrSetup
             }
             var notesFrame = new Panel { Dock = DockStyle.Fill, Padding = new Padding(12), BackColor = Theme.Panel };
             notesFrame.Controls.Add(notes); notesFrame.Controls.Add(controls); notesFrame.Controls.Add(features); notesFrame.Controls.Add(issues);
-            Notes.RenderPage(features, BuiltIn("BwVrSetup.features.md"));
-            features.SelectionStart = 0; features.ScrollToCaret();
+            // The VR features page is drawn once the window is up (its pictures need the box on screen
+            // and its width), and again when the window's width changes.
+            Shown += (s, e) => RenderFeatures();
+            ResizeEnd += (s, e) => RenderFeatures();
             tabs.Add("Patch notes", () => ShowTab(0, true));
             tabs.Add("Known issues", () => ShowTab(3, true));
             tabs.Add("VR features", () => ShowTab(2, true));

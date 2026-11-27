@@ -201,6 +201,26 @@ namespace BwVrSetup
         }
     }
 
+    // A RichTextBox on Windows' newer rich edit control (msftedit.dll, RICHEDIT50W, in every Windows
+    // since XP SP1), which shows JPEG and PNG pictures in its text; WinForms' own uses the older one,
+    // which shows them as blank space. Falls back to the older one if msftedit can't be loaded.
+    public sealed class PictureTextBox : RichTextBox
+    {
+        [System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+        static extern IntPtr LoadLibrary(string name);
+        static readonly bool Msftedit = LoadLibrary("msftedit.dll") != IntPtr.Zero;
+
+        protected override CreateParams CreateParams
+        {
+            get
+            {
+                var cp = base.CreateParams;
+                if (Msftedit) cp.ClassName = "RICHEDIT50W";
+                return cp;
+            }
+        }
+    }
+
     public static class Notes
     {
         // The controls list (installer/controls.md): sections, and tables of control and what it does,
@@ -275,14 +295,26 @@ namespace BwVrSetup
             if (body.Length == 0) body = null;
         }
 
-        // A page of text (installer/features.md): sections in gold, paragraphs and bullets with **bold**.
+        // A page of text (installer/features.md): sections in gold, paragraphs and bullets with **bold**,
+        // and pictures: a line "![what it shows](name.jpg)" shows res\features\name.jpg (built in as
+        // BwVrSetup.img.name.jpg) across the box's width.
         public static void RenderPage(RichTextBox box, string md)
         {
-            bool first = true;
+            bool first = true, afterHeading = false;
             foreach (var raw in (md ?? "").Replace("\r", "").Split('\n'))
             {
                 string line = raw.Trim();
                 if (line.Length == 0 || line.StartsWith("# ")) continue; // the tab is the title
+                bool wasHeading = afterHeading; afterHeading = line.StartsWith("## ");
+                if (line.StartsWith("![") && line.EndsWith(")") && line.Contains("]("))
+                {
+                    string name = line.Substring(line.IndexOf("](") + 2).TrimEnd(')');
+                    box.SelectionStart = box.TextLength;
+                    box.SelectionIndent = 0; box.SelectionHangingIndent = 0;
+                    if (!wasHeading) Append(box, "\n", Theme.Small, Theme.Dim); // a gap after the text above
+                    Picture(box, "BwVrSetup.img." + name);
+                    continue;
+                }
                 if (line.StartsWith("## "))
                 {
                     Append(box, (first ? "" : "\n") + line.Substring(3) + "\n", Theme.Heading, Theme.Gold);
@@ -321,6 +353,33 @@ namespace BwVrSetup
                 Append(box, "\n", Theme.Body, Theme.Text);
             }
             Append(box, "\n", Theme.Body, Theme.Text);
+        }
+
+        // A built-in picture at the end of the box, as wide as the box (less a margin), with a gap below.
+        // Put in as RTF: the picture's own bytes (\jpegblip or \pngblip) and its size on the page.
+        static void Picture(RichTextBox box, string resource)
+        {
+            byte[] bytes;
+            using (var s = typeof(Notes).Assembly.GetManifestResourceStream(resource))
+            {
+                if (s == null) return; // a picture not built in: nothing
+                using (var ms = new System.IO.MemoryStream()) { s.CopyTo(ms); bytes = ms.ToArray(); }
+            }
+            int w, h;
+            using (var img = Image.FromStream(new System.IO.MemoryStream(bytes))) { w = img.Width; h = img.Height; }
+            float dpi; using (var g = box.CreateGraphics()) dpi = g.DpiX;
+            int shownPx = Math.Max(160, Math.Min(box.ClientSize.Width - 28, (int)(560 * dpi / 96)));
+            int twipW = shownPx * 1440 / (int)dpi, twipH = twipW * h / w;
+            string blip = resource.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ? "\\pngblip" : "\\jpegblip";
+            var rtf = new System.Text.StringBuilder(bytes.Length * 2 + 200);
+            rtf.Append("{\\rtf1{\\pict").Append(blip).Append("\\picw").Append(w).Append("\\pich").Append(h)
+               .Append("\\picwgoal").Append(twipW).Append("\\pichgoal").Append(twipH).Append(' ');
+            foreach (byte b in bytes) rtf.Append(b.ToString("x2"));
+            rtf.Append("}\\par}");
+            box.SelectionStart = box.TextLength; box.SelectionLength = 0;
+            bool ro = box.ReadOnly; box.ReadOnly = false; // a read-only box refuses pictures put in
+            box.SelectedRtf = rtf.ToString();
+            box.ReadOnly = ro;
         }
 
         public static void Append(RichTextBox box, string text, Font f, Color c)

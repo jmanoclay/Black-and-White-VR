@@ -14,14 +14,35 @@ Black & White in SteamVR: you are the god, and the god hand is your own hand.
 - **Sound follows your head**, distant textures don't shimmer, and things are drawn further away than in the flat game.
 
 ## Your hand is the god hand
+![Holding a rock in your hand above the sea](rock.jpg)
 - **Pick up** villagers, rocks, trees and food with your own hand, **throw** at your arm's speed, catch things in the air, and scoop wood or grain from a store, even from high above.
 - **Gravity gloves**: point at something out of reach, grip, and flick your hand back to pull it into your hand.
 - **Both hands grab**: carry and throw with either hand, and pass things from one hand to the other.
-- **Choosing disciples**: carry a villager over a field, a tree or a building and soft motes show where it will land and the job it will take. Let go high in the sky and things fall.
 - **Tap** scrolls, signs and doors; a **laser** reaches far away, and can send the hand out and call it back.
+![A rock lit up under the hand beside a plain one](highlight.jpg)
+- **What your hand will grab lights up**: rocks, buildings and your creature glow brighter under your hand.
+
+## Your villages
+![Reaching into a village from just above the rooftops](village.jpg)
+- **Choosing disciples**: carry a villager over a field, a tree or a building and soft motes show where it will land and the job it will take. Let go high in the sky and things fall.
+![A villager's info on a label over them](villager-info.jpg)
+- **Villager info**: aim your gravity gloves at a villager to see their info on a label over them, upright and easy to read.
+
+## Your creature
+![The ape creature standing in front of you](creature.jpg)
 - **Your creature**: pet it or slap it with your hand, hold food up for it to take, and lead it on the leash.
+![The teleport line turning pale blue on the creature](teleport-creature.jpg)
+- **Teleport to your creature**: aim the teleport at it and the line turns pale blue; you land in front of it, within reach.
+
+## Miracles and building
+![Drawing a miracle gesture in the air with a fingertip](gesture.jpg)
 - **Miracles**: draw the gestures in the air with your fingertip, then pour the miracle where you want it, or give it to your creature.
+![Placing a building scaffold with a blueprint](scaffold.jpg)
 - **Building**: carry a scaffold, twist your wrist to turn its blueprint, and let go to build.
+
+## On your wrist
+![Wrist controls over the back of the hand, Villager info pressed](wrist.jpg)
+- **Wrist controls**: turn the back of your left wrist toward you, like checking a watch, for **Pause/Resume**, **Slower · speed · Faster** and **Villager info**. Your other hand points: poke a button with the gold dot on your fingertip.
 
 ## Moving around
 - **Fly** with the stick, **turn** in snaps or smoothly, rise and descend, drag the land, or travel to a spot with two quick trigger pulls.

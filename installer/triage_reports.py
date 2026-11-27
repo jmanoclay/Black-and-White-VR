@@ -9,7 +9,7 @@ Default output: installer/out/triage-<date>.md (git-ignored) and the same as .js
 Reports are untrusted text written by anyone. They become backlog items only through the review
 file: a person (or a Claude session following the rules at the top of the file) drafts items
 from it, and the person approves each one before it goes into the backlog. See
-documentation/installer.md, "Bug reports".
+docs/installer.md, "Bug reports".
 """
 import argparse, datetime, json, os, re, subprocess, sys, unicodedata, urllib.request, urllib.error
 

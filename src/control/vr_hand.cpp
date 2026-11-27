@@ -24,6 +24,8 @@
 #include "game/bw_symbols.h"
 #include "game/engine.h"
 #include "render/state_saver.h"
+#include "render/eye_target.h"
+#include <memory>
 #include "vr/openvr_backend.h"
 
 namespace bw::stereo { void watch_writes(uintptr_t addr); void request_recenter(); void request_autosave(); int drawn_recently(const void* obj3d); bool disciple_icon(const void*& obj3d, int& type); }
@@ -108,6 +110,7 @@ struct Settings {
     float tap_s = 0.25f;          // a trigger pull let go within this is a tap
     bool fight_mode = true;        // in a creature fight the trigger is the game's click (debug: hands fight_mode 0)
     bool fight_pin = true;         // in a fight the held button's cursor stays where it went down (debug: hands fight_pin 0)
+    float plant_upright_deg = 45.0f;  // [hands] plant_upright_deg: a tree let go of gently, leaning less than this, is stood up straight to be planted (0: off)
     bool launch_catch_up = true;   // a thrown thing keeps moving with its throw until the game's physics takes it on (debug: hands launch_catch_up 0)
     float outside_alpha = 0.4f;    // outside the influence, where it can't act, the hand is drawn this opaque ([hands] outside_alpha_percent; 100: off)
     float tip_under_hand = 0.5f;   // the laser's diamond under the laser hand, as a part of its size ([hands] tip_under_hand_percent)
@@ -172,7 +175,7 @@ struct Settings {
     // it, and the slower one that strokes it (held a moment, so a swing on its way to a slap isn't
     // taken for a stroke). The game itself decides on the cursor's speed once a second.
     bool pet_by_speed = true;
-    float slap_m_s = 1.2f, stroke_m_s = 0.3f;
+    float slap_m_s = 2.2f, stroke_m_s = 0.3f;  // (slap: 1.2 m/s until 2026-11-26: a slow reach slapped)
     // Player comfort settings (the pause menu's VR Options tab; 2026-11-01).
     bool turn_smooth = false;        // [hands] smooth_turn: the stick turns smoothly (off: in snaps)
     float snap_deg = 30.0f;          // [hands] snap_turn_deg
@@ -211,6 +214,10 @@ struct Settings {
     // at its blueprint (people and animals: disciple_max_m); higher, it falls. (Player, 2026-11-13:
     // buildings get big, placed from further out.)
     float scaffold_max_m = 20.0f;
+    // [hands] plant_max_height_cm: a tree let go of gently up to this high above the ground is planted below the hand
+    // (people and animals are set down up to disciple_max_m); higher, it falls. (Player, 2026-11-27: "the height at
+    // which it drops it versus planting it could be a little higher", showing about 11 m.)
+    float plant_max_m = 12.0f;
     float wrist_back_m = 0.08f;  // the wrist sits this far behind the controller along the fingers
     float blend_time = 0.25f;
 };
@@ -514,10 +521,14 @@ struct PreHold {
     // harness, 0.34 s in a playtest), and meanwhile names the last thing it held, or nothing. A rock
     // goes straight to holding (no state 3), and stayed on the ground till then (player, 2026-11-13).
     bool unnamed = false;
+    int draws = 0;  // (its draws put at the palm: logged at the end)
 };
 PreHold g_prehold;
 bool g_prehold_on = true;  // (hands prehold 0: as the game does it)
-bool g_prehold_tree_draw_only = true;  // (hands prehold 1 1 0: a tree's matrix written too, as before 2026-11-13)
+// (hands prehold 1 1 0: the thing's matrix written as well, as before 2026-11-26: the game moved a rock on its
+// way into its hand over that, and a rock gripped as the hand swept past it came into the hand late, from where
+// it lay; player, 2026-11-26. Drawn at the palm only, the game can't.)
+bool g_prehold_tree_draw_only = true;
 Vec3 flight_pos(const Flight& f, double t) { return f.start + f.v * float(t - f.t0); }
 
 // The carried object as last drawn (stereo's carry moves it to the drawn hand).
@@ -697,6 +708,25 @@ void* __cdecl add_object_detour(void* object, const game::LHPoint* velocity, con
         if (g_release.plant) {
             p.y = std::max(0.0f, ground_height(p.x, p.z));
             v = {0, 0, 0};
+            // Stood up straight, its facing kept, if it leans under 45 degrees: the game plants only a tree standing
+            // nearly upright, and held as a hand naturally is the tree leaned 39 degrees and fell over, dead (13
+            // degrees planted); held "upright", the player's still didn't (2026-11-27). Sideways it still falls.
+            if (m) {
+                const Vec3 up{m[3], m[4], m[5]}, fw{m[6], m[7], m[8]}, rt{m[0], m[1], m[2]};
+                const float su = vr::length(up), sf = vr::length(fw), sr = vr::length(rt);
+                const float lean = su > 1e-4f ? std::acos(std::clamp(up.y / su, -1.0f, 1.0f)) * 57.2958f : 90.0f;
+                Vec3 f{fw.x, 0, fw.z};
+                if (lean > 0.5f && lean < g_set.plant_upright_deg && vr::length(f) > 1e-4f * sf) {
+                    f = vr::normalize(f);
+                    Vec3 r = vr::cross(Vec3{0, 1, 0}, f);
+                    if (vr::dot(r, rt) < 0) r = r * -1.0f;  // (its handedness kept)
+                    r = vr::normalize(r);
+                    m[0] = r.x * sr, m[1] = r.y * sr, m[2] = r.z * sr;
+                    m[3] = 0, m[4] = su, m[5] = 0;
+                    m[6] = f.x * sf, m[7] = 0, m[8] = f.z * sf;
+                    BWLOG("hands: launch: the tree stood upright to be planted (it leaned %.0f degrees)", lean);
+                }
+            }
         }
         if (m) m[9] = p.x, m[10] = p.y, m[11] = p.z;
         if (m && g_set.launch_catch_up) g_after_launch = {obj3d, now_s(), p, Vec3{v.x, v.y, v.z}, false};
@@ -705,6 +735,12 @@ void* __cdecl add_object_detour(void* object, const game::LHPoint* velocity, con
     BWLOG("hands: launch: %s game velocity (%.2f, %.2f, %.2f) -> (%.2f, %.2f, %.2f)%s from (%.1f, %.1f, %.1f)", class_name(object),
           velocity->x, velocity->y, velocity->z, v.x, v.y, v.z, flying ? " [hand, in flight]" : ours ? " [hand]" : " [game's]",
           m ? m[9] : 0.0f, m ? m[10] : 0.0f, m ? m[11] : 0.0f);
+    if (m && is_tree(object)) {  // (how upright: its up row against the world's up; a tree is planted only standing up)
+        const Vec3 up{m[3], m[4], m[5]};
+        BWLOG("hands: launch: the tree's up (%.2f, %.2f, %.2f): %.0f degrees from upright, the ground %.1f below it%s", up.x, up.y, up.z,
+              std::acos(std::clamp(up.y / std::max(1e-4f, vr::length(up)), -1.0f, 1.0f)) * 57.2958f,
+              m[10] - std::max(0.0f, ground_height(m[9], m[11])), g_release.plant ? " (to be planted)" : "");
+    }
     // After the launch, Object::InitialisePhysicsFromHand decides from the velocity it was given
     // (this one: the game's own, all but still when the player's hand moves) whether the hand
     // threw or dropped. Under ~1.4 units/s across the ground it is a drop: the object is put on
@@ -715,7 +751,10 @@ void* __cdecl add_object_detour(void* object, const game::LHPoint* velocity, con
     // throw, at 0x6370AB), not 1.4; told 1.5, a thing let go of gently, high up, was "set down": a
     // person or animal stood on the ground at once.) Let go of gently below the high line, it is still
     // told 1.5: set down, as a comfort. High up, or thrown, it is told a throw: it falls.
-    if (flying && g_set.throw_tell_game) {
+    // (Not a tree being planted: told it moved, the game took it as dropped, not planted; it slid down the slope.
+    // From near the ground, with no flight, it was planted: it is told what it is given, nothing. Player,
+    // 2026-11-27: "I'm not able to plant trees anymore... even just from teleport height.")
+    if (flying && g_set.throw_tell_game && !g_release.plant) {
         game::LHPoint seen = v;
         const float want = g_release.high || std::sqrt(v.x * v.x + v.z * v.z) > 2.0f ? 2.2f : 1.5f;
         const float across = std::sqrt(seen.x * seen.x + seen.z * seen.z);
@@ -2020,7 +2059,7 @@ const std::vector<Tunable>& tunables() {
         {L"Catch: only things faster than", &g_set.catch_speed_m_s, nullptr, nullptr, 0.25f, 0.0f, 10.0f, L"catch_speed_cm_s", 100, L"%.2f m/s"},
         {L"Catch: reach for things in flight", &g_set.catch_reach_m, nullptr, nullptr, 0.05f, 0.0f, 1.0f, L"catch_reach_cm", 100, L"%.0f cm", 100},
         {L"Grab below the hand: reach", &g_set.reach_m, nullptr, nullptr, 0.05f, 0.0f, 1.5f, L"reach_cm", 100, L"%.0f cm", 100},
-        {L"Petting: a swing this fast slaps", &g_set.slap_m_s, nullptr, nullptr, 0.1f, 0.3f, 5.0f, L"slap_speed_cm_s", 100, L"%.1f m/s"},
+        {L"Petting: a swing this fast slaps", &g_set.slap_m_s, nullptr, nullptr, 0.1f, 0.3f, 5.0f, L"slap_swing_cm_s", 100, L"%.1f m/s"},
         {L"Petting: a rub this fast strokes", &g_set.stroke_m_s, nullptr, nullptr, 0.05f, 0.05f, 2.0f, L"stroke_speed_cm_s", 100, L"%.2f m/s"},
         {L"Hand-over: hold up for", &g_set.give_dwell, nullptr, nullptr, 0.05f, 0.0f, 2.0f, L"give_dwell_ms", 1000, L"%.2f s"},
         {L"Hand-over: reach around the creature", &g_set.give_margin_m, nullptr, nullptr, 0.02f, 0.0f, 1.0f, L"give_margin_cm", 100, L"%.0f cm", 100},
@@ -2224,6 +2263,7 @@ void configure() {
     g_set.teleport_to_creature = paths::ini_int(L"hands", L"teleport_to_creature", 1) != 0;
     g_set.teleport_creature_front = paths::ini_int(L"hands", L"teleport_creature_front", 1) != 0;
     g_set.scaffold_max_m = float(paths::ini_int(L"hands", L"scaffold_build_max_cm", 2000)) / 100.0f;
+    g_set.plant_max_m = float(paths::ini_int(L"hands", L"plant_max_height_cm", 1200)) / 100.0f;
     g_set.throw_flight = paths::ini_int(L"hands", L"throw_flight", 1) != 0;
     g_set.build_at_blueprint = paths::ini_int(L"hands", L"build_at_blueprint", 1) != 0;
     g_set.gesture_b = paths::ini_int(L"hands", L"gesture_button_b", 1) != 0;
@@ -2241,7 +2281,9 @@ void configure() {
     g_set.shake_reversals = paths::ini_int(L"hands", L"shake_reversals", 4);
     g_set.pet_gain = float(paths::ini_int(L"hands", L"pet_gain_percent", 75)) / 100.0f;
     g_set.pet_by_speed = paths::ini_int(L"hands", L"pet_by_speed", 1) != 0;
-    g_set.slap_m_s = float(paths::ini_int(L"hands", L"slap_speed_cm_s", 120)) / 100.0f;
+    // (A new key: the old slap_speed_cm_s=120 is saved in players' bwvr.ini by the menu's Back.)
+    g_set.slap_m_s = float(paths::ini_int(L"hands", L"slap_swing_cm_s", 220)) / 100.0f;
+    g_set.plant_upright_deg = float(paths::ini_int(L"hands", L"plant_upright_deg", 45));
     g_set.stroke_m_s = float(paths::ini_int(L"hands", L"stroke_speed_cm_s", 30)) / 100.0f;
     g_set.near_in = float(paths::ini_int(L"hands", L"near_in_cm", 70)) / 100.0f;
     g_set.near_out = float(paths::ini_int(L"hands", L"near_out_cm", 85)) / 100.0f;
@@ -2501,6 +2543,19 @@ void gravity_update(const Controller& c, uint32_t st) {
         // The grip on the target (or one shown a moment ago): locked on.
         const bool free = hand_free(st);
         if (squeeze_edge) {
+            // (Not a grip as the hand sweeps past: locked on then, the sweep itself was a flick, and a rock
+            // nearby flew into the hand; player, 2026-11-26: "teleporting into the hand". A pull starts from a
+            // hand held still at the grip, under 0.9 m/s.)
+            float sweep = 0;
+            for (const auto& s : g_ctl_vel)
+                if (now - s.t < 0.1) sweep = std::max(sweep, vr::length(s.v));
+            if (g.target && free && alive(g.target) && now - target_seen_at < 0.35 && sweep > 0.9f * g_rig_scale) {
+                static int told = 0;
+                if (told++ < 20) BWLOG("hands: gravity gloves: the grip came as the hand swept by (%.1f m/s): not locked on", sweep / g_rig_scale);
+                g.target = nullptr;
+                to(GravityGlove::kIdle);
+                return;
+            }
             if (g.target && free && alive(g.target) && now - target_seen_at < 0.35) {
                 to(GravityGlove::kLocked);
                 vr::openvr::haptic(g_hand, 0.04f, 120.0f, 0.6f);
@@ -3288,6 +3343,23 @@ struct PalmSample {
     Vec3 p;
 };
 std::deque<PalmSample> g_pet_palm;
+// The hand's speed for a slap: the up and down part counting for 0.6 (a hand let fall to the side after petting
+// slapped the creature; player, 2026-11-26).
+float pet_slap_speed_m_s() {
+    if (g_pet_speed_test >= 0) return g_pet_speed_test;
+    const double now = now_s();
+    float best = 0;
+    const auto weigh = [](const Vec3& v) { return std::sqrt(v.x * v.x + v.z * v.z + 0.36f * v.y * v.y); };
+    if (!g_ctl_vel.empty() && now - g_ctl_vel.back().t < 0.05) {
+        for (const auto& s : g_ctl_vel)
+            if (now - s.t < 0.06) best = std::max(best, weigh(s.v));
+        return best / std::max(1e-3f, g_rig_scale);
+    }
+    if (g_pet_palm.size() < 2) return 0;
+    const double dt = g_pet_palm.back().t - g_pet_palm.front().t;
+    if (dt < 0.02) return 0;
+    return weigh(g_pet_palm.back().p - g_pet_palm.front().p) / float(dt) / std::max(1e-3f, g_rig_scale);
+}
 float pet_hand_speed_m_s() {
     const double now = now_s();
     if (g_pet_speed_test >= 0) return g_pet_speed_test;
@@ -3327,10 +3399,15 @@ void __fastcall pet_update_detour(void* self, void* edx, float dt, void* m) {
     const double now = now_s();
     const float sp = pet_hand_speed_m_s();
     static double band_since = -1;
-    if (sp < g_set.stroke_m_s || sp >= g_set.slap_m_s) band_since = -1;
+    if (sp < g_set.stroke_m_s || pet_slap_speed_m_s() >= g_set.slap_m_s) band_since = -1;
     else if (band_since < 0) band_since = now;
-    const bool slap = sp >= g_set.slap_m_s;
-    const bool stroke = !slap && band_since >= 0 && now - band_since > 0.15;
+    // (Neither while the teleport is aimed, nor just after: turning with it held swung the hand through the
+    // creature, a slap; player, 2026-11-26.)
+    static double aimed_at = -10;
+    if (g_tp.aiming) aimed_at = now;
+    const bool aiming = now - aimed_at < 0.3;
+    const bool slap = !aiming && pet_slap_speed_m_s() >= g_set.slap_m_s;
+    const bool stroke = !aiming && !slap && band_since >= 0 && now - band_since > 0.15;
     int32_t dx = cur[0] - prev[0], dy = cur[1] - prev[1];
     if (dx == 0 && dy == 0) dx = 1;
     const float s0 = game_speed(dx, dy);
@@ -4467,7 +4544,7 @@ void prehold_end(const char* why) {
     // written again by the game, and would have stayed at the palm.)
     const bool restore = m && h.wrote && game_hand_state() != kHandStateHolding && memcmp(m, h.last, sizeof(h.last)) == 0;
     if (restore) memcpy(m, h.saved, sizeof(h.saved));
-    BWLOG("hands: pick-up drawn at the palm for %.2f s: %s%s", now_s() - h.t0, why, restore ? " (put back where it was)" : "");
+    BWLOG("hands: pick-up drawn at the palm for %.2f s (%d draws there): %s%s", now_s() - h.t0, h.draws, why, restore ? " (put back where it was)" : "");
     h = {};
 }
 void prehold_update() {
@@ -4491,7 +4568,7 @@ void prehold_update() {
         if (!o3 || IsBadWritePtr(o3 + 0x14, 48) || !bounding_sphere(o, nullptr, c, r)) return;
         const float* m = reinterpret_cast<const float*>(o3 + 0x14);
         h.object = o, h.obj3d = o3, h.t0 = now_s(), h.r = r, h.off = c - Vec3{m[9], m[10], m[11]};
-        h.draw_only = g_prehold_tree_draw_only && is_tree(o);
+        h.draw_only = g_prehold_tree_draw_only;
         memcpy(h.saved, m, sizeof(h.saved));
         if (st == kHandStateHolding) BWLOG("hands: %s held, the game not yet naming it: drawn at the palm meanwhile", class_name(o));
         return;
@@ -4560,9 +4637,22 @@ struct WristPanel {
         bool lit;
     };
     std::vector<Button> buttons;
-    int armed = -1;  // the button the fingertip is in (pressed as it went in; again only once it has left)
+    int armed = -1;  // the button the finger is in (pressed as it went in; again only once it is well clear)
+    double pressed_at = -10, shown_at = -10;
+    Vec3 tip;  // the main hand's fingertip, pointing (what presses)
+    bool tip_on = false;
 };
 WristPanel g_wrist;
+// The pointing hand's index fingertip from the palm (along the fingers, to the thumb's side, out of the palm): as
+// the god hand is drawn, 16.5 cm out (the gestures' pen, 9 cm, is at its knuckles; harness pictures, 2026-11-26).
+// hands wrist_tip <cm> <cm> <cm>.
+float g_wrist_tip_cm[3] = {17.0f, 1.5f, 0.0f};  // (16.5, 2.5, -1.5 sat "a little bit over" the finger; player, 11-27)
+int g_wrist_log_near = 0;
+Vec3 wrist_tip() {
+    const float k = 0.01f * g_rig_scale, side = g_set.dominant == vr::kLeft ? -1.0f : 1.0f;  // (a left hand: mirrored)
+    return g_near.palm + vr::normalize(g_near.z) * (g_wrist_tip_cm[0] * k) + vr::normalize(g_near.x) * (side * g_wrist_tip_cm[1] * k) +
+           vr::normalize(g_near.y) * (g_wrist_tip_cm[2] * k);
+}
 bool g_wrist_on = true;  // [hands] wrist_menu
 int g_wrist_log = 0;
 uint32_t game_flags() {
@@ -4608,65 +4698,81 @@ void wrist_press(int id) {
     }
     vr::openvr::haptic(g_set.dominant, 0.02f, 220.0f, 0.6f);
 }
-void wrist_update(const Vec3& eye) {
+void wrist_update(const EyeView& view) {
+    const Vec3 eye = view.pos;
     WristPanel& w = g_wrist;
     NearHand nh;
     const bool tracked = g_wrist_on && !g_cinema && !g_ui_pointing && game::game_instance() && second_hand(nh);
-    // (The back of the other hand toward the eyes: shown above 0.6, hidden below 0.3, after 0.15 s.)
-    const float back = tracked ? vr::dot(vr::normalize(nh.y) * -1.0f, vr::normalize(eye - nh.pos)) : -1.0f;
-    const bool want = tracked && back > (w.shown ? 0.3f : 0.6f) && vr::length(eye - nh.pos) < 0.8f * g_rig_scale;
+    // Looked at as a watch is: the back of the other hand turned toward the eyes (0.6), within 70 cm of them and
+    // within 40 degrees of where the head points; hidden past 0.4, 85 cm or 55 degrees; after 0.15 s. (It came
+    // up with the hand turned over anywhere, not looked at; player, 2026-11-26. Then 50 cm and 35 degrees were too
+    // close: the hand held naturally in front, about 60 cm off and 30 degrees aside, didn't bring it up; 11-27.)
+    const Vec3 to_eye = vr::normalize(eye - nh.pos);
+    const float back = tracked ? vr::dot(vr::normalize(nh.y) * -1.0f, to_eye) : -1.0f;
+    const float dist = vr::length(eye - nh.pos) / g_rig_scale, gaze = vr::dot(to_eye * -1.0f, vr::normalize(view.rot.fwd));
+    const bool want = tracked && back > (w.shown ? 0.4f : 0.6f) && dist < (w.shown ? 0.85f : 0.7f) && gaze > (w.shown ? 0.574f : 0.766f);
+    if (tracked && !w.shown && back > 0.5f && g_wrist_log_near > 0) {  // (debug, hands wrist_near N: why it isn't shown)
+        static double at = 0;
+        if (now_s() - at > 0.5)
+            at = now_s(), --g_wrist_log_near,
+            BWLOG("hands: wrist: not shown: the back of the hand %.2f to the eyes, %.2f m off, %.0f degrees off the gaze", back, dist,
+                  std::acos(std::clamp(gaze, -1.0f, 1.0f)) * 57.2958f);
+    }
     if (want == w.shown) w.since = now_s();
     else if (now_s() - w.since > 0.15) {
         w.shown = want, w.since = now_s(), w.armed = -1;
+        if (want) w.shown_at = now_s();
         static int told = 0;
         if (told++ < 3) BWLOG("hands: wrist: the controls %s", want ? "shown" : "hidden");
     }
     w.buttons.clear();
     if (!w.shown) return;
     const float m = g_rig_scale;
-    // Over the forearm just behind the wrist, as a watch's face, facing the eyes; the rows upward. (Over the
-    // back of the hand the hand, drawn after them, hid the words it was in front of.)
-    w.centre = nh.pos - vr::normalize(nh.y) * (0.02f * m) - vr::normalize(nh.z) * (0.09f * m);
+    // Over the back of the hand, 5 cm out from the wrist, facing the eyes; the rows upward. (Over the forearm
+    // "Slower" was a long reach: player, 2026-11-26. Drawn after the hand now, at their depth: draw_wrist.)
+    w.centre = nh.pos - vr::normalize(nh.y) * (0.05f * m) + vr::normalize(nh.z) * (0.04f * m);
     w.fwd = vr::normalize(w.centre - eye);
     w.right = vr::normalize(vr::cross(Vec3{0, 1, 0}, w.fwd));
     w.up = vr::cross(w.fwd, w.right);
-    const float row = 0.032f * m, col = 0.065f * m;
+    // (Plates 3 cm high, 1 cm apart; "Slower" and "Faster" 7 cm either side of the speed.)
+    const float row = 0.04f * m, col = 0.07f * m;
     const Vec3 c = w.centre;
-    w.buttons = {{0, c + w.up * row, 0.035f * m, false},
-                 {1, c - w.right * col, 0.03f * m, false}, {2, c, 0.018f * m, false}, {3, c + w.right * col, 0.03f * m, false},
-                 {4, c - w.up * row, 0.04f * m, false}};
+    w.buttons = {{0, c + w.up * row, 0.04f * m, false},
+                 {1, c - w.right * col, 0.03f * m, false}, {2, c, 0.02f * m, false}, {3, c + w.right * col, 0.03f * m, false},
+                 {4, c - w.up * row, 0.065f * m, false}};
     if (g_wrist_log > 0) {  // (debug: hands wrist_log N)
         --g_wrist_log;
         for (const auto& b : w.buttons) BWLOG("hands: wrist: button %d at (%.2f, %.2f, %.2f)", b.id, b.pos.x, b.pos.y, b.pos.z);
     }
-    // The main hand's fingertip (as for drawing gestures).
+    // The main hand points while the panel is up (near_hand), and its fingertip presses, shown as a gold dot
+    // (draw_wrist): the finger's whole length (5 to 14 cm out) pressed what it lay across on its way to a side
+    // button, and where it pressed couldn't be seen (player, 2026-11-26: pointing as for a miracle "feels
+    // good"). A press as the tip goes into a button (within 2.5 cm in front of it); again once it has come out
+    // of it (2 cm back, or a third wider) and 0.3 s on: at a button's edge it flickered in and out. None in the
+    // panel's first 0.4 s: the hand already there pressed one as it appeared.
+    w.tip_on = false;
     if (!g_near.on || g_near.blend < 1.0f) return;
-    const Vec3 tip = g_near.palm + g_near.z * (0.09f * m);
-    int in = -1;
+    w.tip = wrist_tip(), w.tip_on = true;
+    int in = -1, close_to = -1;
     for (auto& b : w.buttons) {
-        const Vec3 d = tip - b.pos;
-        const float h = vr::dot(d, w.right), v = vr::dot(d, w.up), z = vr::dot(d, w.fwd);
-        b.lit = std::fabs(h) < b.half_w && std::fabs(v) < 0.014f * m && std::fabs(z) < 0.03f * m;
+        const Vec3 d = w.tip - b.pos;
+        const float h = std::fabs(vr::dot(d, w.right)), v = std::fabs(vr::dot(d, w.up)), z = vr::dot(d, w.fwd);
+        b.lit = h < b.half_w && v < 0.019f * m && z > -0.025f * m && z < 0.04f * m;
+        // (Still in it however far through: a poke through the plate and back pressed twice; playtest 11-27.)
+        if (h < b.half_w * 1.3f && v < 0.03f * m && z > -0.045f * m) close_to = b.id;
         if (b.lit) in = b.id;
     }
-    if (in >= 0 && in != w.armed) wrist_press(in);
-    w.armed = in;
-}
-bool wrist(WristView& out) {
-    if (!g_wrist.shown || g_wrist.buttons.empty()) return false;
-    out.unit = g_rig_scale;
-    out.buttons.clear();
-    const bool paused = game_flags() & 4, info = game_flags() & 0x200000;
-    for (const auto& b : g_wrist.buttons) {
-        std::wstring t = b.id == 0 ? (paused ? L"Resume" : L"Pause") : b.id == 1 ? L"Slower" : b.id == 2 ? speed_text(game_speed()) : b.id == 3 ? L"Faster"
-                                                                                                                       : (info ? L"Info: on" : L"Info: off");
-        out.buttons.push_back({t, b.pos, b.lit});
-    }
-    return true;
+    if (in >= 0 && in != w.armed && now_s() - w.shown_at > 0.4 && now_s() - w.pressed_at > 0.3)
+        wrist_press(in), w.armed = in, w.pressed_at = now_s();
+    if (close_to < 0) w.armed = -1;
 }
 
+namespace {
+void villager_labels_frame();
+}
 void update(const Controller ctl[2], const WorldFrame& wf, const EyeView& pick_eye) {
     g_gg_view = pick_eye, g_gg_view_ok = true;
+    villager_labels_frame();
     shake_leash_check();
     game_hand_alive();  // (drops a hand freed by a restart)
     ++g_updates;
@@ -4969,7 +5075,9 @@ void update(const Controller ctl[2], const WorldFrame& wf, const EyeView& pick_e
             }
         }
         if (pet_wait && now - g_on_creature_at > 0.5 && now > giving_until) pet_wait = false;
-        g_petting = !g_fight && g_set.pet && hand_mode && !pet_wait && (hand_free(hs) || hs == 7) && now - g_on_own_at < 0.25;
+        // (Not while the teleport is aimed: turning with it held swung the hand through the creature, a slap;
+        // player, 2026-11-26.)
+        g_petting = !g_fight && g_set.pet && hand_mode && !pet_wait && !g_tp.aiming && (hand_free(hs) || hs == 7) && now - g_on_own_at < 0.25;
     }
     const bool giving = now_s() < giving_until;
     Vec3 cursor_point = g_ptr.hit;
@@ -5913,6 +6021,7 @@ void update(const Controller ctl[2], const WorldFrame& wf, const EyeView& pick_e
         const float above_now = g_near.palm.y - std::max(0.0f, ground_height(g_near.palm.x, g_near.palm.z));
         bool high = g_near.on && g_set.disciple_max_m > 0 && above_now > g_set.disciple_max_m * wf.scale;
         if (high && is_scaffold(object_in_hand()) && above_now <= g_set.scaffold_max_m * wf.scale) high = false;  // (a scaffold: higher)
+        if (high && is_tree(object_in_hand()) && above_now <= g_set.plant_max_m * wf.scale) high = false;  // (a tree: planted from higher)
         if (g_near.on && !giving && !g_scoop_done) {
             void* held = object_in_hand();
             Vec3 v0;
@@ -6051,7 +6160,7 @@ void update(const Controller ctl[2], const WorldFrame& wf, const EyeView& pick_e
     fireball_no_decay();
     track_fireball();
     freeze_watch_tick();
-    wrist_update(pick_eye.pos);
+    wrist_update(pick_eye);
     if (g_walk_check_at > 0 && now_s() > g_walk_check_at) {
         BWLOG("hands: leash: the creature's command is now 0x%X, its action 0x%X (control %d)", creature_command(own_creature()),
               creature_action(own_creature()), creature_control(own_creature()));
@@ -6265,6 +6374,8 @@ bool near_hand(NearHand& out) {
     // Drawing a gesture with B held: the hand points, the pen at the fingertip (player, 2026-10-27).
     if (g_set.point_to_draw && g_gd.on && g_near.blend >= 1.0f) out.pose = HandPose::kPoint;
     if (g_zap && g_near.blend >= 1.0f) out.pose = HandPose::kPoint;  // (lightning: pointed with the finger)
+    // (The wrist's buttons up: pointing to press them, the hand free; player, 2026-11-26.)
+    if (g_wrist.shown && g_near.blend >= 1.0f && hand_free(game_hand_state())) out.pose = HandPose::kPoint;
     out.axis_len = g_set.hand_size * g_rig.scale;
     return true;
 }
@@ -6747,8 +6858,263 @@ void draw_carry_ray(IDirect3DDevice7* dev, const EyeView& eye) {
     draw_tris(dev, v);
     g_tris_additive = false;
 }
+// ---- Words standing in the world (2026-11-26) ----
+// GDI-made textures (render::TextTexture) on quads facing the eye but kept upright (world up), at their place's
+// depth and depth tested, drawn after the world and the hand. The game's own words are flat on the screen: the
+// villagers' info tilted with the head, its backing came apart from it as the head moved, it was cut off part
+// way up the view and its lines ran into each other; the wrist's words tilted too (player, 2026-11-26).
+namespace {
+struct LabelTex {
+    std::wstring key;
+    std::unique_ptr<render::TextTexture> tex;
+    double used_at = 0;
+};
+std::vector<LabelTex> g_label_tex;
+int g_label_made = 0;     // (made this frame: a few a frame)
+int g_label_log = 0;      // debug: hands label_log N
+// A texture of `lines` (cached by `key`, dropped unused for 3 s); null when it couldn't be made (yet).
+render::TextTexture* label_texture(void* dev, const std::wstring& key, const std::vector<std::wstring>& lines, int title_lines, uint32_t bg,
+                                   uint32_t title_rgb, uint32_t text_rgb, uint8_t bg_alpha) {
+    const double now = now_s();
+    for (auto& l : g_label_tex)
+        if (l.key == key) {
+            l.used_at = now;
+            return l.tex->surface() ? l.tex.get() : nullptr;
+        }
+    static double swept = 0;
+    if (now - swept > 1.0) {
+        swept = now;
+        g_label_tex.erase(std::remove_if(g_label_tex.begin(), g_label_tex.end(), [&](const LabelTex& l) { return now - l.used_at > 3.0; }), g_label_tex.end());
+    }
+    if (g_label_made >= 6) return nullptr;
+    ++g_label_made;
+    if (g_label_tex.size() >= 40)
+        g_label_tex.erase(std::min_element(g_label_tex.begin(), g_label_tex.end(), [](const LabelTex& a, const LabelTex& b) { return a.used_at < b.used_at; }));
+    LabelTex l;
+    l.key = key, l.used_at = now, l.tex = std::make_unique<render::TextTexture>();
+    if (!l.tex->set(dev, lines, title_lines, bg, title_rgb, text_rgb, bg_alpha)) return nullptr;
+    g_label_tex.push_back(std::move(l));
+    return g_label_tex.back().tex.get();
+}
+// Right and up for something at `at` facing the eye, upright (world up).
+void upright_axes(const EyeView& eye, const Vec3& at, Vec3& r, Vec3& u, Vec3& f) {
+    f = vr::normalize(at - eye.pos);
+    r = vr::cross(Vec3{0, 1, 0}, f);
+    r = vr::length(r) < 1e-3f ? eye.rot.right : vr::normalize(r);
+    u = vr::cross(f, r);
+}
+// The label `t` at `at` (its middle), `h` tall, facing the eye, upright (or along `rr`, `uu`), depth tested, by
+// its alpha.
+void draw_label(IDirect3DDevice7* dev, const EyeView& eye, render::TextTexture* t, const Vec3& at, float h, float alpha, const Vec3* rr = nullptr,
+                const Vec3* uu = nullptr) {
+    if (!t || !t->surface() || t->height() <= 0) return;
+    const float w = h * float(t->width()) / float(t->height());
+    Vec3 r, u, f;
+    upright_axes(eye, at, r, u, f);
+    if (rr && uu) r = *rr, u = *uu;
+    const Vec3 q[4] = {at - r * (w * 0.5f) + u * (h * 0.5f), at + r * (w * 0.5f) + u * (h * 0.5f), at + r * (w * 0.5f) - u * (h * 0.5f),
+                       at - r * (w * 0.5f) - u * (h * 0.5f)};
+    const float uv[4][2] = {{0, 0}, {t->u1(), 0}, {t->u1(), t->v1()}, {0, t->v1()}};
+    struct TV {
+        float x, y, z, rhw;
+        DWORD c;
+        float u, v;
+    } v[4];
+    const DWORD c = (DWORD(std::clamp(alpha, 0.0f, 1.0f) * 255.0f) << 24) | 0xFFFFFF;
+    for (int i = 0; i < 4; ++i) {
+        float sx, sy, Z;
+        if (!project(eye, q[i], sx, sy, Z) || Z < 1.0f) return;
+        v[i] = {sx, sy, std::max(0.0f, 1.0f - g_set.depth_k / (Z * 0.995f)), 1.0f / Z, c, uv[i][0], uv[i][1]};
+    }
+    TV tri[6] = {v[0], v[1], v[2], v[0], v[2], v[3]};
+    const HRESULT scene = dev->lpVtbl->BeginScene(dev);
+    {
+        render::StateSaver st(dev);  // (the states below are put back afterwards)
+        st.texture(0, static_cast<IDirectDrawSurface7*>(t->surface()));
+        st.tss(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+        st.tss(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+        st.tss(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+        st.tss(0, D3DTSS_ALPHAOP, D3DTOP_MODULATE);
+        st.tss(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
+        st.tss(0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+        st.tss(0, D3DTSS_MAGFILTER, D3DTFG_LINEAR);
+        st.tss(0, D3DTSS_MINFILTER, D3DTFN_LINEAR);
+        st.tss(0, D3DTSS_MIPFILTER, D3DTFP_NONE);
+        st.tss(0, D3DTSS_ADDRESS, D3DTADDRESS_CLAMP);
+        st.tss(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
+        st.rs(D3DRENDERSTATE_ZENABLE, TRUE);
+        st.rs(D3DRENDERSTATE_ZWRITEENABLE, FALSE);
+        st.rs(D3DRENDERSTATE_ZFUNC, D3DCMP_LESSEQUAL);
+        st.rs(D3DRENDERSTATE_ALPHABLENDENABLE, TRUE);
+        st.rs(D3DRENDERSTATE_SRCBLEND, D3DBLEND_SRCALPHA);
+        st.rs(D3DRENDERSTATE_DESTBLEND, D3DBLEND_INVSRCALPHA);
+        st.rs(D3DRENDERSTATE_ALPHATESTENABLE, FALSE);
+        st.rs(D3DRENDERSTATE_CULLMODE, D3DCULL_NONE);
+        st.rs(D3DRENDERSTATE_FOGENABLE, FALSE);
+        st.rs(D3DRENDERSTATE_SPECULARENABLE, FALSE);
+        dev->lpVtbl->DrawPrimitive(dev, D3DPT_TRIANGLELIST, D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1, tri, 6, 0);
+    }
+    if (SUCCEEDED(scene)) dev->lpVtbl->EndScene(dev);
+}
+std::vector<std::wstring> split_lines(const std::wstring& s) {
+    std::vector<std::wstring> out;
+    size_t a = 0;
+    for (;;) {
+        const size_t b = s.find(L'\n', a);
+        std::wstring l = s.substr(a, b == std::wstring::npos ? std::wstring::npos : b - a);
+        while (!l.empty() && (l.back() == L' ' || l.back() == L'\r')) l.pop_back();
+        if (!l.empty()) out.push_back(l);
+        if (b == std::wstring::npos) break;
+        a = b + 1;
+    }
+    return out;
+}
+// The villagers' info as the game asks for it (VillagerName::Add, through ui), drawn as labels: one for each
+// villager (the game asks in each eye's pass, every frame), kept 0.3 s after it was last asked for and fading
+// over that time: as the gloves went from one villager to the next, or the game left one out for a frame, they
+// blinked on and off (player, 2026-11-26).
+struct VillagerLabel {
+    const void* villager;
+    Vec3 at;
+    std::wstring text;
+    uint32_t colour;
+    double seen_at;
+};
+std::vector<VillagerLabel> g_vlabels;
+void villager_labels_frame() {
+    const double now = now_s();
+    g_vlabels.erase(std::remove_if(g_vlabels.begin(), g_vlabels.end(), [&](const VillagerLabel& l) { return now - l.seen_at > 0.3; }), g_vlabels.end());
+    g_label_made = 0;
+}
+void draw_villager_labels(IDirect3DDevice7* dev, const EyeView& eye) {
+    if (g_vlabels.empty()) return;
+    // Facing the head (between the eyes), not each eye: each eye's own turned the two eyes' labels apart, near
+    // or looked down on, and they were seen double (player, 2026-11-26). The farthest first, a nearer over it.
+    const Vec3 head = g_gg_view_ok ? g_gg_view.pos : eye.pos;
+    std::vector<const VillagerLabel*> order;
+    for (const auto& l : g_vlabels) order.push_back(&l);
+    std::sort(order.begin(), order.end(), [&](const VillagerLabel* a, const VillagerLabel* b) {
+        return vr::length(a->at - head) > vr::length(b->at - head);
+    });
+    if (order.size() > 8) order.erase(order.begin(), order.end() - 8);
+    const double now = now_s();
+    for (const VillagerLabel* lp : order) {
+        const VillagerLabel& l = *lp;
+        const float alpha = std::clamp(1.0f - float(now - l.seen_at - 0.05) / 0.25f, 0.0f, 1.0f);
+        if (alpha <= 0) continue;
+        const std::vector<std::wstring> lines = split_lines(l.text);
+        if (lines.empty()) continue;
+        // Its name (the game gives one for some) in the game's colour for it, larger; the rest pale on a dark backing.
+        const int titles = lines.size() >= 3 ? 1 : 0;
+        const uint32_t name_rgb = (l.colour & 0xFFFFFF) ? (l.colour & 0xFFFFFF) : 0xFFE8B0;
+        render::TextTexture* t = label_texture(dev, l.text + L"|v", lines, titles, 0x101010, name_rgb, 0xF4ECDC, 205);
+        if (!t) continue;
+        // A line 1.3 degrees high (as far as 12 m: 27 cm), not under 2.5 cm (at the player's scale).
+        const float d = vr::length(l.at - head);
+        const float line = std::clamp(0.023f * d, 0.025f * g_rig_scale, 0.35f * g_rig_scale);
+        const float h = line * float(t->height()) / 44.0f;  // (44 px a line in the texture)
+        // (Its right level; looked at from straight above, the head's right made level.)
+        const Vec3 f = vr::normalize(l.at - head);
+        Vec3 r = vr::cross(Vec3{0, 1, 0}, f);
+        if (vr::length(r) < 0.05f) r = Vec3{g_gg_view.rot.right.x, 0, g_gg_view.rot.right.z};
+        r = vr::length(r) > 1e-4f ? vr::normalize(r) : Vec3{1, 0, 0};
+        const Vec3 u = vr::cross(f, r);
+        const float gap = 0.6f * line;  // (its bottom this far over where the game put it: a stem down to there)
+        draw_label(dev, eye, t, l.at + u * (gap + h * 0.5f), h, alpha, &r, &u);
+        std::vector<Vtx> stem;
+        const Vec3 sd = r * (0.05f * line), top = l.at + u * gap;
+        const Vec3 sq[4] = {top - sd, top + sd, l.at + sd * 0.3f, l.at - sd * 0.3f};
+        const DWORD top_c = (DWORD(192.0f * alpha) << 24) | 0xF4ECDC, foot_c = (DWORD(64.0f * alpha) << 24) | 0xF4ECDC;
+        const DWORD sc[4] = {top_c, top_c, foot_c, foot_c};
+        add_quad(stem, eye, sq, sc, 0.995f);
+        draw_tris(dev, stem);
+    }
+}
+// The wrist's buttons: raised plates (a shadow, a rim, a face lighter at the top), pressed in and gold while
+// the finger is in one; their words on them. All in the panel's plane (facing the eyes, upright: each facing
+// the eye on its own, they fanned out).
+constexpr float kWristHalfH = 0.015f;  // (each plate 3 cm high; their widths: wrist_update)
+void draw_wrist(IDirect3DDevice7* dev, const EyeView& eye) {
+    const WristPanel& w = g_wrist;
+    if (!w.shown || w.buttons.empty()) return;
+    const float m = g_rig_scale, hh = kWristHalfH * m;
+    const bool paused = game_flags() & 4, info = game_flags() & 0x200000;
+    const float appear = std::clamp(float(now_s() - w.shown_at) / 0.15f, 0.0f, 1.0f);  // (fading in)
+    auto argb = [&](uint32_t rgb, float a) { return (DWORD(std::clamp(a * appear, 0.0f, 1.0f) * 255.0f) << 24) | (rgb & 0xFFFFFF); };
+    const Vec3 r = w.right, u = w.up, f = w.fwd;
+    for (const auto& b : w.buttons) {
+        const bool on = b.lit;
+        const Vec3 c = b.pos + f * ((on ? 0.004f : 0.0f) * m);  // (pressed in)
+        std::vector<Vtx> v;
+        auto rect = [&](const Vec3& at, float hw, float hh2, DWORD top, DWORD bottom) {
+            const Vec3 q[4] = {at - r * hw + u * hh2, at + r * hw + u * hh2, at + r * hw - u * hh2, at - r * hw - u * hh2};
+            const DWORD col[4] = {top, top, bottom, bottom};
+            add_quad(v, eye, q, col, 0.995f);
+        };
+        const float e = 0.0022f * m;  // (the rim)
+        if (!on) rect(c - u * (0.003f * m) + r * (0.002f * m) + f * (0.001f * m), b.half_w, hh, argb(0, 0.45f), argb(0, 0.45f));  // (its shadow)
+        rect(c, b.half_w, hh, argb(on ? 0xFFE7A0 : 0x9A9AB0, 0.95f), argb(on ? 0xC08A30 : 0x50505E, 0.95f));
+        const uint32_t face_top = on ? 0xD9A640 : 0x3A3A48, face_bottom = on ? 0xA8761E : 0x22222C;
+        rect(c, b.half_w - e, hh - e, argb(face_top, 0.92f), argb(face_bottom, 0.92f));
+        draw_tris(dev, v);
+        const std::wstring t = b.id == 0 ? (paused ? L"Resume" : L"Pause") : b.id == 1 ? L"Slower" : b.id == 2 ? speed_text(game_speed()) : b.id == 3 ? L"Faster"
+                                                                                                                       : (info ? L"Villager info: on" : L"Villager info: off");
+        // (Its words on a see-through backing of the face's colour: their edges blend into it.)
+        const uint32_t mid = on ? 0xC08E2F : 0x2E2E3A;
+        render::TextTexture* tex = label_texture(dev, t + (on ? L"|lit" : L"|btn"), {t}, 0, mid, 0xFFFFFF, on ? 0x2A1A00 : 0xF2F2F2, 0);
+        if (!tex || tex->height() <= 0) continue;
+        // Letters 1.2 cm high (a third of the texture's 100 px a line), narrower if they wouldn't fit the plate.
+        float h = 0.036f * m;
+        const float text_w = h * float(tex->width() - 56) / float(tex->height());
+        if (text_w > 2 * (b.half_w - 0.006f * m)) h *= 2 * (b.half_w - 0.006f * m) / text_w;
+        draw_label(dev, eye, tex, c + f * (-0.0005f * m), h, appear, &r, &u);
+    }
+    if (w.tip_on) {  // (the fingertip: a gold dot, over all, 7 mm across)
+        std::vector<Vtx> dot;
+        Vec3 dr, du, df;
+        upright_axes(eye, w.tip, dr, du, df);
+        const float s = 0.0035f * m;
+        const DWORD gold = argb(0xFFD040, 1.0f), edge = argb(0xFFD040, 0.0f);
+        for (int i = 0; i < 8; ++i) {  // (a little disc: a fan of eight)
+            const float a0 = 6.2831853f * float(i) / 8.0f, a1 = 6.2831853f * float(i + 1) / 8.0f;
+            const Vec3 q[4] = {w.tip, w.tip, w.tip + (dr * std::cos(a0) + du * std::sin(a0)) * s, w.tip + (dr * std::cos(a1) + du * std::sin(a1)) * s};
+            const DWORD col[4] = {gold, gold, edge, edge};
+            add_quad(dot, eye, q, col, 0.99f);
+        }
+        g_tris_over_all = true;
+        draw_tris(dev, dot);
+        g_tris_over_all = false;
+    }
+}
+}  // namespace
+
+void villager_label(const Vec3& at, const wchar_t* text, uint32_t colour, int eye, const void* villager) {
+    if (!text) return;
+    VillagerLabel* l = nullptr;
+    for (auto& x : g_vlabels)
+        if (villager ? x.villager == villager : x.text == text) l = &x;
+    if (!l) {
+        if (g_vlabels.size() >= 48) return;
+        g_vlabels.push_back({villager, at, text, colour, now_s()});
+    } else {
+        l->at = at, l->colour = colour, l->seen_at = now_s();
+        if (l->text != text) l->text = text;
+    }
+    if (g_label_log > 0) {
+        --g_label_log;
+        char s[160];
+        WideCharToMultiByte(CP_UTF8, 0, text, -1, s, sizeof(s), nullptr, nullptr);
+        s[sizeof(s) - 1] = 0;
+        for (char* p = s; *p; ++p)
+            if (*p == '\n') *p = '|';
+        BWLOG("hands: villager label for %p at (%.1f, %.1f, %.1f) colour %08X eye %d: %s", villager, at.x, at.y, at.z, colour, eye, s);
+    }
+}
+
 void draw(void* device, const EyeView& eye) {
     g_device = device;
+    if (device) draw_villager_labels(static_cast<IDirect3DDevice7*>(device), eye);
+    if (device) draw_wrist(static_cast<IDirect3DDevice7*>(device), eye);
     if (device) draw_teleport_aim(static_cast<IDirect3DDevice7*>(device), eye);
     if (device) draw_gravity(static_cast<IDirect3DDevice7*>(device), eye);
     if (device) draw_carry_ray(static_cast<IDirect3DDevice7*>(device), eye);
@@ -6809,7 +7175,13 @@ void draw(void* device, const EyeView& eye) {
                 // isn't, as a field. Player, 2026-11-13.)
                 const char* o3 = !IsBadReadPtr(target, 0x44) ? *reinterpret_cast<const char* const*>(static_cast<const char*>(target) + 0x40) : nullptr;
                 // (Lit up if its model's draws were, a moment ago: else the ring.)
-                if (g_glow_obj3d != o3) g_glow_hit_at = -10;
+                // (A new thing: taken as lit for its first 0.3 s, until its draws say: the ring showed for a frame
+                // before the glow each time; player, 2026-11-26.)
+                // (Also the same thing touched again after a moment off it: its draws hadn't been lit in that
+                // moment, and the ring flashed; player, 2026-11-26.)
+                static double last_on = -10;
+                if (g_glow_obj3d != o3 || now_s() - last_on > 0.15) g_glow_hit_at = now_s() + 0.1;
+                last_on = now_s();
                 if (g_set.glow_models) g_glow_obj3d = o3, g_glow_object = target, g_glow_amount = amount, g_glow_at = now_s(), g_glow_cool = false;
                 static const void* told = nullptr;
                 if (told != target && now_s() - g_glow_hit_at < 0.2)
@@ -7121,7 +7493,11 @@ WorldFrame locomotion(const Controller ctl[2], const vr::Pose& head, const World
                 if (void* cr = own_creature(); cr && g_set.teleport_to_creature) {
                     Vec3 cc;
                     float rr = 0;
-                    if (bounding_sphere(cr, nullptr, cc, rr) && rr > 0) {
+                    // (Not from beside it, where a teleport to it puts the player: the aim went into it and the
+                    // teleport came back to it; player, 2026-11-26.)
+                    const Vec3 head_w = to_world(rig_frame(), head.pos);
+                    if (bounding_sphere(cr, nullptr, cc, rr) && rr > 0 &&
+                        std::hypot(head_w.x - cc.x, head_w.z - cc.z) > 0.6f * rr + 1.0f * g_rig.scale && vr::length(g_tp.from - cc) > rr * 1.3f) {
                         const Vec3 oc = cc - g_tp.from;
                         const float t = vr::dot(oc, d);
                         const float land_t = g_tp.valid ? vr::length(g_tp.target - g_tp.from) : 1e9f;
@@ -7455,7 +7831,9 @@ int held_kind() {
     if (!g_game_hand || IsBadReadPtr(static_cast<char*>(g_game_hand) + 0x4850, 4)) return 0;
     if (game_hand_state() == 8) return 2;
     void* held = held_game_object();
-    if (held && strcmp(class_name(held), ".?AVRock@@") == 0) {
+    // (And other small things: poo pulled in with the gloves sat off below the hand; player, 2026-11-26.)
+    if (held && (strcmp(class_name(held), ".?AVRock@@") == 0 || strcmp(class_name(held), ".?AVPoo@@") == 0 ||
+                 strcmp(class_name(held), ".?AVMobileObject@@") == 0)) {
         sync_held_kind(held);
         return 3;
     }
@@ -7954,7 +8332,9 @@ bool command(const std::string& k, std::istringstream& in) {
         else if (what == "finger_pitch") in >> g_set.finger_pitch_deg;
         else if (what == "near_drag") in >> g_set.near_drag;
         else if (what == "laser") in >> g_laser;
-        else if (what == "move_speed" || what == "follow_ground" || what == "glow_models" || what == "wrist_press" || what == "wrist_log") {  // (follow_ground 0|1, glow_models 0|1)
+        else if (what == "move_speed" || what == "follow_ground" || what == "glow_models" || what == "wrist_press" || what == "wrist_log" ||
+                 what == "label_log" || what == "wrist_tip" || what == "wrist_near" ||
+                 what == "plant_upright_deg" || what == "plant_max_m") {  // (follow_ground 0|1, glow_models 0|1)
             // (Plain ifs: the chain of else-ifs is at the compiler's nesting limit.)
             if (what == "move_speed") in >> g_set.move_speed;
             if (what == "glow_models") in >> g_set.glow_models >> g_glow_any;
@@ -7962,6 +8342,11 @@ bool command(const std::string& k, std::istringstream& in) {
             int id = -1;  // (debug: hands wrist_press <0 pause, 1 slower, 2 normal, 3 faster, 4 info>)
             if (what == "wrist_press" && in >> id) wrist_press(id);
             if (what == "wrist_log") in >> g_wrist_log;
+            if (what == "label_log") in >> g_label_log;  // (hands label_log N: the next N villagers' labels)
+            if (what == "wrist_tip") in >> g_wrist_tip_cm[0] >> g_wrist_tip_cm[1] >> g_wrist_tip_cm[2];
+            if (what == "wrist_near") in >> g_wrist_log_near;
+            if (what == "plant_upright_deg") in >> g_set.plant_upright_deg;
+            if (what == "plant_max_m") in >> g_set.plant_max_m;
         }
         else if (what == "near_in") in >> g_set.near_in;
         else if (what == "near_out") in >> g_set.near_out;
@@ -8049,21 +8434,36 @@ void note_held(void* obj3d, const float* matrix) {
 }
 
 bool held_unnamed() { return g_prehold.object && g_prehold.unnamed; }
+bool object_centre(const void* object, Vec3& centre) {
+    float r = 0;
+    return object && bounding_sphere(const_cast<void*>(object), nullptr, centre, r);
+}
 float glow_scale(const void* obj3d, const void* object) {
     // (Its 3D object, or the thing itself as the renderer is handed it: a building's +0x40 isn't its model.)
     if (!obj3d || now_s() - g_glow_at > 0.1 || (obj3d != g_glow_obj3d && (!object || object != g_glow_object))) return 0;
     static const void* told = nullptr;
     if (object == g_glow_object && obj3d != g_glow_obj3d && told != object) told = object, BWLOG("hands: lit up by the thing: its model %p", obj3d);
-    // Brighter by the highlight's amount (35%: x1.35), breathing a little (0.8 Hz).
-    return 1.0f + g_glow_amount * (0.8f + 0.2f * std::sin(float(now_s()) * 5.0f));
+    // Brighter by the highlight's amount, 1.8 times over (35%: x1.63; "very subtle", player 2026-11-26), breathing a
+    // little (0.8 Hz). (The creature under the teleport's aim as it was: liked.)
+    const float a = g_glow_cool ? g_glow_amount : g_glow_amount * 1.8f;
+    return 1.0f + a * (0.8f + 0.2f * std::sin(float(now_s()) * 5.0f));
 }
 void glow_seen() { g_glow_hit_at = now_s(); }
+bool tree_falls_if_let_go() {
+    if (!g_near.on || g_near.blend < 1.0f) return false;
+    const float above = g_near.palm.y - std::max(0.0f, ground_height(g_near.palm.x, g_near.palm.z));
+    return above > std::max(g_set.plant_max_m, g_set.disciple_max_m) * g_rig_scale;
+}
+const void* gloves_target() {
+    return (g_gg.st == GravityGlove::kTarget || g_gg.st == GravityGlove::kLocked) && g_gg.target ? g_gg.target : nullptr;
+}
 bool glow_cool() { return g_glow_cool; }
 void* held_object_3d_now() { return held_object_3d_hand(); }
 bool prehold_draw(const void* obj3d, float* matrix) {
-    const PreHold& h = g_prehold;
+    PreHold& h = g_prehold;
     if (!h.object || !h.draw_only || !h.has_draw || obj3d != h.obj3d) return false;
     matrix[9] = h.draw_at.x, matrix[10] = h.draw_at.y, matrix[11] = h.draw_at.z;
+    ++h.draws;
     return true;
 }
 
