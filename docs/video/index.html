@@ -59,7 +59,7 @@
   .bar .wrap { display: flex; align-items: center; gap: 16px; height: 60px; }
   .brand { font-family: Georgia, serif; font-weight: 700; font-size: 20px; color: var(--gold); text-decoration: none; white-space: nowrap; }
   .bar nav { margin-left: auto; display: flex; gap: 18px; align-items: center; }
-  .bar nav a { color: var(--dim); text-decoration: none; font-size: 15px; }
+  .bar nav a { color: var(--dim); text-decoration: none; font-size: 15px; white-space: nowrap; }
   .bar nav a:hover { color: var(--text); }
   .bar .cta-small { padding: 8px 14px; border-radius: 9px; background: var(--blue); color: #fff; font-weight: 600; }
   main { padding: 28px 0 64px; }
@@ -84,6 +84,7 @@
   footer { border-top: 1px solid var(--line); padding: 28px 0 40px; color: var(--dim); font-size: 14px; }
   footer p { margin: 0 0 8px; }
   footer a { color: var(--dim); }
+  @media (max-width: 900px) { .bar nav a:not(.cta-small) { display: none; } }
   @media (max-width: 760px) {
     .bar nav a:not(.cta-small) { display: none; }
     .brand { font-size: 18px; }
@@ -101,6 +102,7 @@
     <nav aria-label="Site">
       <a href="../#features">Features</a>
       <a href="../#install">Install</a>
+      <a href="../patch-notes/">Patch notes</a>
       <a href="https://discord.gg/YzWQUZSsYZ">Discord</a>
       <a href="https://github.com/jmanoclay/Black-and-White-VR#source-code">Source code</a>
       <a class="cta-small" href="https://github.com/jmanoclay/Black-and-White-VR/releases/latest/download/JakeypooBWVRModInstaller.exe">Download</a>

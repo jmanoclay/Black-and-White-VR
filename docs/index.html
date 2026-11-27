@@ -152,6 +152,9 @@
   .card .body { padding: 18px 20px 22px; }
   .card h3 { margin: 0 0 6px; font-size: 19px; color: var(--gold-hi); }
   .card p { margin: 0; color: var(--dim); font-size: 16px; }
+  .new { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: -6px 0 26px; padding: 12px 16px; border: 1px solid rgba(212,175,92,.45); border-radius: 12px; background: rgba(212,175,92,.07); color: var(--text); }
+  .new .tag { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #16141b; background: var(--gold); border-radius: 6px; padding: 2px 8px; }
+  .new a { margin-left: auto; white-space: nowrap; }
   .more { margin-top: 28px; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px 28px; padding: 0; list-style: none; }
   .more li { padding-left: 22px; position: relative; color: var(--dim); }
   .more li::before { content: ""; position: absolute; left: 4px; top: .7em; width: 7px; height: 7px; border-radius: 50%; background: var(--gold); }
@@ -187,7 +190,7 @@
   footer p { margin: 0 0 8px; }
   footer a { color: var(--dim); }
 
-  @media (max-width: 900px) { .bar nav { display: none; } .bar .cta-small { margin-left: auto; } }
+  @media (max-width: 1000px) { .bar nav { display: none; } .bar .cta-small { margin-left: auto; } }
   @media (max-width: 760px) {
     .bar nav { display: none; }
     .bar .wrap { gap: 12px; }
@@ -210,6 +213,7 @@
       <a href="video/">Video</a>
       <a href="#install">Install</a>
       <a href="#faq">FAQ</a>
+      <a href="patch-notes/">Patch notes</a>
       <a href="https://discord.gg/YzWQUZSsYZ">Discord</a>
       <a href="https://github.com/jmanoclay/Black-and-White-VR">GitHub</a>
       <a href="https://github.com/jmanoclay/Black-and-White-VR#source-code">Source code</a>
@@ -253,6 +257,7 @@
     <div class="wrap">
       <h2>Be the hand of God</h2>
       <p class="sub">Everything the god hand did with a mouse, you now do with your own hands, in a world that's all around you.</p>
+      <p class="new"><span class="tag">New in 0.4.0</span> Wrist controls, villager info in the world, and teleporting to your creature. <a href="patch-notes/">Read the patch notes &rarr;</a></p>
       <div class="grid">
         <article class="card">
           <img src="img/rock.jpg" alt="Holding a rock in your hand above the sea" loading="lazy" width="960" height="540">
@@ -278,9 +283,22 @@
           <img src="img/scaffold.jpg" alt="Placing a building scaffold with a blueprint" loading="lazy" width="960" height="540">
           <div class="body"><h3>Build with your hands</h3><p>Carry a scaffold, turn your wrist to turn the blueprint, and let go to build.</p></div>
         </article>
+        <article class="card">
+          <img src="img/wrist.jpg" alt="Wrist controls over the back of the hand, pressed with a fingertip" loading="lazy" width="960" height="540">
+          <div class="body"><h3>Controls on your wrist</h3><p>Glance at the back of your wrist like a watch: Pause, game speed and villager info, pressed with your fingertip.</p></div>
+        </article>
+        <article class="card">
+          <img src="img/villager-info.jpg" alt="A villager's info on a label over them, upright in the world" loading="lazy" width="960" height="540">
+          <div class="body"><h3>Know your villagers</h3><p>Aim your gravity gloves at a villager to see their info on a label over them, upright and easy to read.</p></div>
+        </article>
+        <article class="card">
+          <img src="img/teleport-creature.jpg" alt="The teleport line turning pale blue on the creature" loading="lazy" width="960" height="540">
+          <div class="body"><h3>Teleport to your creature</h3><p>Aim the teleport at your creature and the line turns pale blue: land right in front of it, within reach to pet or slap.</p></div>
+        </article>
       </div>
       <ul class="more">
         <li><strong>Gravity gloves</strong>: point at something far away, grip, and flick it into your hand.</li>
+        <li><strong>What you'll grab lights up</strong>: rocks, buildings and your creature glow under your hand.</li>
         <li><strong>Bird's-eye teleport</strong>: land high above the island and reach down into it.</li>
         <li><strong>Scoop</strong> food and wood from your stores, plant trees, feed your people.</li>
         <li><strong>Menus and cutscenes</strong> on a big floating screen; the laser is your mouse.</li>

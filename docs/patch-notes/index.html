@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Patch Notes: Black &amp; White VR Mod by Jakeypoo</title>
+<meta name="description" content="What's new in each version of Jakeypoo's free Black & White VR mod, newest first: new features, fixes and known issues. Latest: version 0.4.0.">
+<link rel="canonical" href="https://jmanoclay.github.io/Black-and-White-VR/patch-notes/">
+<meta name="theme-color" content="#16141b">
+<meta name="author" content="Jakeypoo">
+<link rel="icon" href="../favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" type="image/png" href="../icon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Black & White VR by Jakeypoo">
+<meta property="og:title" content="Black & White VR Mod: Patch Notes">
+<meta property="og:description" content="What's new in each version of the Black & White VR mod. Latest: version 0.4.0.">
+<meta property="og:url" content="https://jmanoclay.github.io/Black-and-White-VR/patch-notes/">
+<meta property="og:image" content="https://jmanoclay.github.io/Black-and-White-VR/img/social.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  :root { --bg:#121016; --panel:#1c1a22; --line:#34303d; --text:#ece8f1; --dim:#a9a3b4; --gold:#d4af5c; --gold-hi:#e9c977; --blue:#4a86d8; --blue-hi:#5c97e6; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.6 "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  a { color: var(--gold-hi); }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 0 20px; }
+  header.bar { border-bottom: 1px solid var(--line); }
+  .bar .wrap { max-width: 1120px; display: flex; align-items: center; gap: 16px; height: 60px; }
+  .brand { font-family: Georgia, serif; font-weight: 700; font-size: 20px; color: var(--gold); text-decoration: none; white-space: nowrap; }
+  .bar nav { margin-left: auto; display: flex; gap: 18px; align-items: center; }
+  .bar nav a { color: var(--dim); text-decoration: none; font-size: 15px; white-space: nowrap; }
+  .bar nav a:hover, .bar nav a[aria-current] { color: var(--text); }
+  .bar .cta-small { padding: 8px 14px; border-radius: 9px; background: var(--blue); color: #fff; font-weight: 600; }
+  main { padding: 28px 0 64px; }
+  h1 { font-family: Georgia, serif; font-size: clamp(28px, 4vw, 40px); line-height: 1.2; margin: 18px 0 6px; }
+  .lede { color: var(--dim); margin: 0 0 14px; }
+  .jump { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 30px; }
+  .jump a { font-size: 14px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; color: var(--dim); text-decoration: none; }
+  .jump a:hover { color: var(--text); border-color: var(--dim); }
+  .release { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 22px 26px; margin: 0 0 22px; scroll-margin-top: 16px; }
+  .release.latest { border-color: rgba(212,175,92,.55); }
+  .release > header { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 14px; margin-bottom: 6px; }
+  .release h2 { font-family: Georgia, serif; font-size: 26px; margin: 0; color: var(--gold); }
+  .release time { color: var(--dim); font-size: 15px; }
+  .tag { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #16141b; background: var(--gold); border-radius: 6px; padding: 2px 8px; }
+  .notes h3 { font-size: 14px; letter-spacing: .1em; text-transform: uppercase; color: var(--gold-hi); margin: 20px 0 6px; }
+  .notes ul { margin: 0; padding-left: 22px; }
+  .notes li { margin: 4px 0; color: #d9d4e0; }
+  .notes li strong { color: var(--text); }
+  .notes code { font-size: 14px; background: rgba(255,255,255,.07); padding: 1px 5px; border-radius: 4px; }
+  .pics { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 14px 0 4px; }
+  .pics figure { margin: 0; }
+  .pics img { width: 100%; height: auto; display: block; border-radius: 10px; border: 1px solid var(--line); }
+  .pics figcaption { font-size: 14px; color: var(--dim); margin-top: 6px; line-height: 1.4; }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; margin: 34px 0 0; }
+  .btn { display: inline-flex; align-items: center; padding: 13px 20px; border-radius: 12px; font-weight: 700; text-decoration: none; }
+  .btn.primary { background: var(--blue); color: #fff; }
+  .btn.primary:hover { background: var(--blue-hi); }
+  .btn.ghost { background: rgba(255,255,255,.08); color: var(--text); border: 1px solid rgba(255,255,255,.18); }
+  footer { border-top: 1px solid var(--line); padding: 28px 0 40px; color: var(--dim); font-size: 14px; }
+  footer p { margin: 0 0 8px; }
+  footer a { color: var(--dim); }
+  @media (max-width: 900px) { .bar nav a:not(.cta-small) { display: none; } }
+  @media (max-width: 640px) {
+    .brand { font-size: 18px; }
+    .release { padding: 18px 16px; }
+    .pics { grid-template-columns: 1fr; }
+    .btn { width: 100%; justify-content: center; }
+  }
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="wrap">
+    <a class="brand" href="../">Black &amp; White VR</a>
+    <nav aria-label="Site">
+      <a href="../#features">Features</a>
+      <a href="../video/">Video</a>
+      <a href="../#install">Install</a>
+      <a href="./" aria-current="page">Patch notes</a>
+      <a href="https://discord.gg/YzWQUZSsYZ">Discord</a>
+      <a href="https://github.com/jmanoclay/Black-and-White-VR#source-code">Source code</a>
+      <a class="cta-small" href="https://github.com/jmanoclay/Black-and-White-VR/releases/latest/download/JakeypooBWVRModInstaller.exe">Download</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <h1>Patch notes</h1>
+    <p class="lede">What's new in each version of the Black &amp; White VR mod, newest first. The installer shows these too, and offers each update as it comes out.</p>
+    <nav class="jump" aria-label="Versions"><a href="#v0.4.0">0.4.0</a><a href="#v0.3.1">0.3.1</a><a href="#v0.3.0">0.3.0</a><a href="#v0.2.4">0.2.4</a><a href="#v0.2.3">0.2.3</a><a href="#v0.2.2">0.2.2</a><a href="#v0.2.1">0.2.1</a><a href="#v0.2.0">0.2.0</a><a href="#v0.1.0">0.1.0</a></nav>
+
+<article class="release latest" id="v0.4.0">
+  <header><h2>Version 0.4.0</h2><time datetime="2026-11-27">November 27, 2026</time> <span class="tag">Latest</span></header>
+  <div class="pics"><figure><img src="../img/wrist.jpg" alt="Wrist controls over the back of the hand, Villager info pressed with a fingertip" loading="lazy" width="960" height="540"><figcaption>Wrist controls over the back of the hand, Villager info pressed with a fingertip</figcaption></figure><figure><img src="../img/villager-info.jpg" alt="A villager&#x27;s info on a label over them, upright in the world" loading="lazy" width="960" height="540"><figcaption>A villager&#x27;s info on a label over them, upright in the world</figcaption></figure><figure><img src="../img/teleport-creature.jpg" alt="The teleport line turns pale blue on your creature" loading="lazy" width="960" height="540"><figcaption>The teleport line turns pale blue on your creature</figcaption></figure><figure><img src="../img/highlight.jpg" alt="What your hand will grab lights up: the rock under the hand glows, the one beside it stays grey" loading="lazy" width="960" height="540"><figcaption>What your hand will grab lights up: the rock under the hand glows, the one beside it stays grey</figcaption></figure></div>
+  <div class="notes">
+<h3>New</h3>
+<ul>
+<li><strong>Wrist controls</strong>: glance at the back of your left wrist, like a watch, for Pause, game speed and Villager info. Buttons rise over your forearm: <strong>Pause/Resume</strong>, <strong>Slower · speed · Faster</strong> and <strong>Villager info</strong>. Your other hand points while they're up, with a gold dot at the fingertip: poke a button to press it.</li>
+<li><strong>Villager info in the world</strong>: aim your gravity gloves at a villager to see their info on a label over them. Turn it on from your wrist; the label stays upright and easy to read whatever your head's tilt.</li>
+<li><strong>Teleport to your creature</strong>: with Teleport movement on (VR Options), aim the teleport at your creature and the line turns pale blue. You land in front of it, within reach to pet or slap. You can teleport away from beside it, too.</li>
+<li><strong>What your hand will grab lights up</strong>: rocks, buildings and your creature glow brighter under your hand, instead of the old ring.</li>
+</ul>
+<h3>Improved</h3>
+<ul>
+<li><strong>Slaps need a real swing</strong>, so a turn of the body no longer counts as one. No petting or slapping while you hold the teleport button.</li>
+<li><strong>The gravity gloves don't lock on</strong> to things your hand merely sweeps past.</li>
+<li><strong>Moving with the stick follows the land</strong>: you keep your height above hills and valleys.</li>
+<li><strong>Build scaffolds from further away</strong>: up to 20 m from their blueprint.</li>
+<li><strong>Small things keep their detail</strong> further into the distance.</li>
+<li><strong>Rocks show up in your palm</strong> as soon as you pick them up.</li>
+<li>Poo sits properly in your hand.</li>
+<li>The moon stays upright when you tilt your head.</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li><strong>Planting trees works again</strong>, from the ground or from up to 12 m above it: a tree held roughly upright is stood up straight as it lands. Before, a tree held the way your hand naturally holds it leaned too far and fell over dead. Held sideways, it still falls, and the hand shows "Plant" only where the tree will be planted.</li>
+<li><strong>Frozen creature</strong>: a creature that stops listening to the leash is now freed automatically.</li>
+</ul>
+<h3>Installer 1.0.19</h3>
+<ul>
+<li><strong>Pictures in the VR features tab</strong>, showing what the mod does.</li>
+</ul>
+<h3>Known issues</h3>
+<ul>
+<li><strong>Picking up rocks and trees while sweeping past</strong> can still feel a moment late. It has its own playtest coming.</li>
+<li><strong>"trigger - continue"</strong> still shows on some lines that go away by themselves. Waiting works too.</li>
+<li><strong>Menu clicks</strong> can now and then stop registering for a moment. Pointing away and back, or closing and reopening the menu, brings them back.</li>
+<li><strong>Menu tick sounds</strong> may not play when the laser moves over the menu's buttons.</li>
+<li><strong>The hand looks see-through from behind</strong> when you look down your wrist.</li>
+<li><strong>The Welcome to VR window</strong> has small gaps in its top border.</li>
+<li><strong>Pouring food or wood from high up</strong>: the stream doesn't quite reach your hand.</li>
+<li><strong>The gravity gloves' motes</strong> can look slightly choppy.</li>
+<li><strong>Nothing can be picked up while the game is paused</strong>, as in the flat game. Press Resume on your wrist first.</li>
+</ul>
+  </div>
+</article>
+
+<article class="release" id="v0.3.1">
+  <header><h2>Version 0.3.1</h2><time datetime="2026-11-14">November 14, 2026</time></header>
+  
+  <div class="notes">
+<h3>Improved</h3>
+<ul>
+<li><strong>Things come to your hand at once</strong>: villagers and trees are in your hand the moment you grip, instead of a beat later. A rock caught in the air no longer flies on first, and a walking villager no longer keeps you waiting.</li>
+<li><strong>Quick grabs count</strong>: grab and throw in one motion, or grab and let go straight away, and it throws or drops as you meant. A quick grip is never a tap, so a rock no longer breaks.</li>
+<li><strong>Rocks sit steady in your palm</strong> once held, with no catching up or jiggling.</li>
+<li><strong>Turning a building's blueprint</strong>: turn your hand left or right (as seen from above) and the blueprint turns the same way, twice as far. It used to turn the wrong way most of the time.</li>
+<li><strong>Shake a disciple to release it</strong>: shaking a villager in your hand works again; as in the flat game, it drops them and ends their disciple job.</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>A tree pulled up no longer leaves its hole floating in the air.</li>
+<li>A thing let go of just as it reached your hand no longer blinks out for a moment.</li>
+<li><strong>Frozen creature</strong>: the mod no longer cuts a petting press short, which is how both reported freezes started. If it ever happens again, loading your last save brings the creature back.</li>
+</ul>
+<h3>Installer 1.0.14</h3>
+<ul>
+<li><strong>Count my launches (optional)</strong>: the first time you press Launch in VR, the installer asks whether it may count your launches, so I can see how many people play. Only a random number and the mod and installer versions are sent, and only if you say yes. Change it any time under <strong>More</strong>.</li>
+</ul>
+<h3>Installer 1.0.16</h3>
+<ul>
+<li>The question about counting launches now comes up once when the installer opens, so players who updated are asked too.</li>
+<li>To stop counting, the <strong>More</strong> menu now says <strong>Stop counting my launches</strong> (and <strong>Hide beta versions</strong> when betas are shown): the menu could not show its check marks.</li>
+</ul>
+<h3>Installer 1.0.17</h3>
+<ul>
+<li><strong>Your saves</strong>: the VR features tab now says it plainly: your existing Black &amp; White saves work with the mod, and saves made with the mod still load without it.</li>
+</ul>
+<h3>Installer 1.0.18</h3>
+<ul>
+<li>Finds the releases by the repository's permanent id, so it keeps finding updates whatever the repository is called. The repository is now <strong>Black-and-White-VR</strong>.</li>
+</ul>
+<h3>Known issues</h3>
+<ul>
+<li><strong>Picking up rocks</strong> can still take a moment after you grip.</li>
+<li><strong>"trigger - continue"</strong> still shows on some lines that go away by themselves. Waiting works too.</li>
+<li><strong>Menu clicks</strong> can now and then stop registering for a moment. Pointing away and back, or closing and reopening the menu, brings them back.</li>
+<li><strong>Menu tick sounds</strong> may not play when the laser moves over the menu's buttons.</li>
+<li><strong>The hand looks see-through from behind</strong> when you look down your wrist.</li>
+<li><strong>The Welcome to VR window</strong> has small gaps in its top border.</li>
+<li><strong>Pouring food or wood from high up</strong>: the stream doesn't quite reach your hand.</li>
+<li><strong>Small things in the distance</strong> (sheep, fences) fade out a little early.</li>
+<li><strong>The gravity gloves' motes</strong> can look slightly choppy.</li>
+<li><strong>A frozen creature</strong>: rarely (seen twice), after petting it, the creature can stop responding. Loading your last save resets it.</li>
+</ul>
+  </div>
+</article>
+
+<article class="release" id="v0.3.0">
+  <header><h2>Version 0.3.0</h2><time datetime="2026-11-08">November 8, 2026</time></header>
+  
+  <div class="notes">
+<h3>New</h3>
+<ul>
+<li><strong>Gravity gloves</strong>, as in Half-Life: Alyx: point an open hand at something out of reach (a villager, an animal, a rock, a tree, even something still flying through the air) and warm motes rise around it. Close your grip to lock on, then flick your hand back: it flies to your hand in an arc. Works from high above the village too. Only things in view and in your influence. VR Options: "Gravity gloves".</li>
+<li><strong>Both hands grab</strong>: pick up, carry, throw and drop with either hand, and pass things from one hand to the other (with a buzz). Miracles, the laser and gestures stay on your main hand. VR Options: "The other hand grabs too".</li>
+<li><strong>Bird's-eye teleport</strong>: teleport lands you high above the ground, like the flat game's view; reach down with the gravity gloves, or scoop from fields and stores below.</li>
+<li><strong>Choosing disciples</strong>: carrying a grown villager, soft motes drift down to a pool of light where they'll land, in the colour of the job they'll take (farmer yellow, forester green, fisherman blue, builder orange, breeder pink). Disciples are made from village height; from high in the sky, villagers just fall.</li>
+<li><strong>Drop things from the sky</strong>: let go of a villager, an animal, a tree or a scaffold high up and it falls. Near the ground they're still set down, planted or built where you let go.</li>
+<li><strong>Scoop from above</strong>: from teleport height, reach down over a field, the store's food or its wood and grip to scoop. A light tick tells you when you're in reach.</li>
+</ul>
+<h3>Improved</h3>
+<ul>
+<li><strong>The sun, clouds and glows stay put</strong> when you tilt or turn your head (the sun's glow used to wander and rotate with your head).</li>
+<li><strong>Gesture shapes stay under their icons</strong> on your upturned left palm, and their preview dots no longer flicker.</li>
+<li><strong>Throwing feels right</strong>: a hand that has stopped doesn't throw, so villagers set down gently stay put.</li>
+<li><strong>Trees planted</strong> from the hand sink into the ground where you let go, instead of floating.</li>
+<li><strong>Picking up people</strong> by buildings and stores is more reliable: people come before piles and fields, and a grip never sends your creature off on the leash.</li>
+<li><strong>Things held in the left hand</strong> are the right way up.</li>
+<li><strong>The leash</strong>: if a shake doesn't drop it, the mod drops it for you; a hand-over the creature doesn't take no longer leaves it waiting.</li>
+</ul>
+<h3>Installer 1.0.12</h3>
+<ul>
+<li>The <strong>Controls</strong> and <strong>VR features</strong> tabs cover the gravity gloves, both hands grabbing, the bird's-eye teleport, choosing disciples and scooping from above.</li>
+</ul>
+<h3>Installer 1.0.13</h3>
+<ul>
+<li>A <strong>Join the Discord</strong> link at the bottom of the window: release news, help and feedback.</li>
+</ul>
+<h3>Known issues</h3>
+<ul>
+<li><strong>Picking things up takes a moment</strong> (the game's own hand reaching for it), most noticeable when catching something in the air.</li>
+<li><strong>"trigger - continue"</strong> still shows on some lines that go away by themselves. Waiting works too.</li>
+<li><strong>Menu clicks</strong> can now and then stop registering for a moment. Pointing away and back, or closing and reopening the menu, brings them back.</li>
+<li><strong>Menu tick sounds</strong> may not play when the laser moves over the menu's buttons.</li>
+<li><strong>The hand looks see-through from behind</strong> when you look down your wrist.</li>
+<li><strong>The Welcome to VR window</strong> has small gaps in its top border.</li>
+<li><strong>Pouring food or wood from high up</strong>: the stream doesn't quite reach your hand.</li>
+<li><strong>Small things in the distance</strong> (sheep, fences) fade out a little early.</li>
+<li><strong>The gravity gloves' motes</strong> can look slightly choppy.</li>
+<li><strong>A frozen creature</strong>: rarely, after petting it with the leash on, the creature can stop responding. Shaking now drops the leash; loading your last save resets the creature.</li>
+</ul>
+  </div>
+</article>
+
+<article class="release" id="v0.2.4">
+  <header><h2>Version 0.2.4</h2><time datetime="2026-11-05">November 5, 2026</time></header>
+  
+  <div class="notes">
+<h3>New</h3>
+<ul>
+<li><strong>Teleport movement</strong> (VR Options → "Teleport with A"): hold <strong>A</strong> on your main hand to aim an energy arc at the land, let go to be there. You land at a comfortable height to reach the ground. With it on, A teleports instead of switching to the laser pointer; everything else stays the same.</li>
+<li><strong>Welcome to VR</strong>: starting a new game in the headset, a short setup pops up first (turning, teleport, comfort vignette, main hand, move speed, recenter view). Continue takes you on to the game's own choices.</li>
+<li><strong>Comfort vignette</strong> (VR Options: off / gentle / strong): the edges of the view darken while you move or turn smoothly. Off by default.</li>
+<li><strong>Recenter view</strong> for seated play: on VR Options and the Welcome page, or hold the other hand's stick click for a second.</li>
+<li><strong>Gestures anywhere</strong>: miracle gestures now work wherever you look, even at the sky, not only with land behind your hand.</li>
+<li><strong>The pointer laser</strong> is now an energy beam, and the influence warning's stream flows from your hand.</li>
+</ul>
+<h3>Improved</h3>
+<ul>
+<li><strong>Autosave</strong>: a "Saving..." panel shows in the middle of your view while the game saves, instead of the view just freezing.</li>
+<li><strong>The disciple icon</strong> (the yellow figure over a villager you hold above a field, workshop or tree) is now big enough to see, just above the villager's head, and only shows for the villager in your hand or under it.</li>
+<li><strong>VR Options</strong> are tidier: on/off settings are checkboxes, Recenter view is a button, the open tab looks selected. The water is always see-through.</li>
+<li><strong>Your hand fades</strong> (both hands) outside your influence, where it can't act, as it used to.</li>
+<li><strong>"trigger - continue"</strong> shows on fewer lines that go by themselves (the spirits' idle chatter no longer gets it).</li>
+<li>You can't fly about while one of the game's menus is up.</li>
+<li>The spirits now show on the cinema screen in the new game's opening.</li>
+</ul>
+<h3>Installer 1.0.10</h3>
+<ul>
+<li>New <strong>Known issues</strong> tab, next to Patch notes: what we know is not right yet in the latest version.</li>
+<li>The <strong>Controls</strong> and <strong>VR features</strong> tabs cover teleport, recentering, the comfort vignette and the Welcome to VR page.</li>
+</ul>
+<h3>Installer 1.0.11</h3>
+<ul>
+<li>The tabs always fit the window, at any size and text scaling (Controls was cut off on some screens).</li>
+<li>No more jumbled text or stray lines when the window is resized.</li>
+</ul>
+<h3>Known issues</h3>
+<ul>
+<li><strong>Gesture shapes drift</strong>: with your palm up toward the left of your view, the pink gesture shapes can drift away from their icons as you turn your head. The icons themselves stay in place.</li>
+<li><strong>"trigger - continue"</strong> still shows on some lines that go away by themselves (some of the friendly god's lines). Waiting works too.</li>
+<li><strong>Menu clicks</strong> can now and then stop registering for a moment, the cursor off from the laser. Pointing away and back, or closing and reopening the menu, brings it back.</li>
+<li><strong>Menu tick sounds</strong> may not play when the laser moves over the menu's buttons.</li>
+<li><strong>The hand looks see-through from behind</strong> when you look down your wrist.</li>
+<li><strong>The Welcome to VR window</strong> has small gaps in its top border.</li>
+<li><strong>Teleport height</strong>: you land low enough to pick things up, so the view is close to the ground. A higher, bird's-eye option with grabbing from afar is planned.</li>
+<li><strong>Autosave</strong> still holds the view still for a moment while "Saving..." shows.</li>
+</ul>
+  </div>
+</article>
+
+<article class="release" id="v0.2.3">
+  <header><h2>Version 0.2.3</h2><time datetime="2026-11-03">November 3, 2026</time></header>
+  
+  <div class="notes">
+<h3>Fixed</h3>
+<ul>
+<li><strong>Double vision in the headset</strong>: 0.2.2 drew both eyes with a generic headset's view. Each eye now matches your headset's lenses again.</li>
+</ul>
+<h3>Installer 1.0.9</h3>
+<ul>
+<li>New <strong>VR features</strong> tab, between Patch notes and Controls: a short tour of what the mod does in VR.</li>
+</ul>
+  </div>
+</article>
+
+<article class="release" id="v0.2.2">
+  <header><h2>Version 0.2.2</h2><time datetime="2026-11-03">November 3, 2026</time></header>
+  
+  <div class="notes">
+<h3>Fixed</h3>
+<ul>
+<li><strong>Starting a new game</strong> ("Start a New Game") and <strong>changing player</strong> no longer crash the game.</li>
+<li><strong>The coastlines</strong>: the sea is now at its real depth.</li>
+<li><strong>Rivers</strong> no longer show the reflected world through them.</li>
+</ul>
+<h3>New</h3>
+<ul>
+<li><strong>Choosing your creature</strong> with the trigger: tap a creature once to pick it, tap it again to choose it.</li>
+<li>The opening splash, the intro videos and the loading screens now show <strong>on a screen in the headset</strong>. The trigger skips the splash.</li>
+<li><strong>Water</strong> setting in VR Options: see-through (the default) or solid.</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>The tutorial's <strong>camera lessons</strong> (rotate, tilt, zoom) now complete when you turn, nod and move up and down in VR.</li>
+<li>The trigger <strong>continues a caption</strong> that stays on screen, and the "trigger - continue" prompt sits on the caption.</li>
+<li><strong>Story scrolls</strong> next to trees can now be tapped.</li>
+<li><strong>Small objects</strong> can be picked up wherever your hand is on them, including the tutorial's gate stone the first time, beside the field.</li>
+</ul>
+<h3>Installer 1.0.8</h3>
+<ul>
+<li>The <strong>Controls</strong> tab covers choosing your creature, captions, the splash and the Water setting.</li>
+</ul>
+  </div>
+</article>
+
+<article class="release" id="v0.2.1">
+  <header><h2>Version 0.2.1</h2><time datetime="2026-11-02">November 2, 2026</time></header>
+  
+  <div class="notes">
+<h3>Fixed</h3>
+<ul>
+<li><strong>Changing player</strong> (Options &gt; Players &gt; Restart) no longer crashes the game.</li>
+<li>With <strong>Main hand: left</strong> in VR Options, each hand now shows the right hand model.</li>
+</ul>
+<h3>New</h3>
+<ul>
+<li><strong>VR from the start</strong>: the game goes into VR by itself as soon as it starts, from the very first 3D frame. Launching it from the installer or straight from runblack.exe both work.</li>
+<li><strong>Creating a new player</strong> opens the SteamVR keyboard to type the name.</li>
+</ul>
+<h3>Installer 1.0.6</h3>
+<ul>
+<li><strong>Launch in VR</strong> just starts SteamVR and the game now; it no longer closes the menu or recentres the view for you.</li>
+<li>Updating from 0.1.0 or 0.2.0 switches on VR-from-the-start in your settings (those versions had it off). Nothing else in your settings changes, and the old file is kept in the backups.</li>
+</ul>
+<h3>Installer 1.0.7</h3>
+<ul>
+<li>Download <strong>JakeypooBWVRModInstaller.exe</strong> below; it keeps itself up to date.</li>
+<li>The window and Task Manager now show it as <strong>Jakeypoo's Black &amp; White VR Mod Installer</strong>.</li>
+</ul>
+  </div>
+</article>
+
+<article class="release" id="v0.2.0">
+  <header><h2>Version 0.2.0</h2><time datetime="2026-11-02">November 2, 2026</time></header>
+  
+  <div class="notes">
+<h3>New</h3>
+<ul>
+<li><strong>VR Options</strong> in the game's pause menu (the other hand's A): snap or <strong>smooth turning</strong>, the snap angle (30 degrees to start), smooth turning speed, move speed, your main hand (left-handed play), the two-hand grab, and throw strength. Your choices are saved and kept through updates.</li>
+<li><strong>Smooth turning</strong> with the main hand's stick, for those who prefer it to snaps.</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li><strong>Lightning</strong> now strikes from your fingertip.</li>
+<li><strong>Developer tools removed</strong> from the player version: the menu's developer page (give yourself any miracle, the raw tuning settings) and the tuning panel on the other hand's stick click. Everyday settings are in VR Options instead.</li>
+</ul>
+<h3>Installer 1.0.5</h3>
+<ul>
+<li>The installer is now just <strong>JakeypooBWVRModInstaller.exe</strong>: no version in the name, since it updates itself. Download it from <a href="https://github.com/jmanoclay/BW-VR-Releases/releases/latest">the latest release</a>.</li>
+<li>The <strong>Controls</strong> tab is up to date with VR Options.</li>
+<li>With installer 1.0.4 or older, download <strong>JakeypooBWVRModInstaller.exe</strong> from <a href="https://github.com/jmanoclay/BW-VR-Releases/releases/latest">the latest release</a> once; from then on it updates itself.</li>
+</ul>
+  </div>
+</article>
+
+<article class="release" id="v0.1.0">
+  <header><h2>Version 0.1.0</h2><time datetime="2026-11-02">November 2, 2026</time></header>
+  
+  <div class="notes">
+<p>The first public release of Black &amp; White VR: the whole game, played in SteamVR with the god hand at your controller. An early version: expect rough edges, and please report what you find.</p>
+<h3>Getting started</h3>
+<ul>
+<li>Download <strong>JakeypooBWVRModInstaller.exe</strong> from <a href="https://github.com/jmanoclay/BW-VR-Releases/releases/latest">the latest release</a> and run it. Windows may say "Windows protected your PC" (it isn't code-signed yet): click <strong>More info</strong>, then <strong>Run anyway</strong>.</li>
+<li>The installer finds Black &amp; White, brings it to v1.20 + Fan Patch 1.42 if needed (downloading the patches from bwgame.net with your OK), installs the mod, and has a <strong>Launch in VR</strong> button.</li>
+<li>Needs the English CD version of Black &amp; White installed, Windows 10 or 11, and SteamVR. Developed and tested on a Valve Index.</li>
+</ul>
+<h3>What's in it</h3>
+<ul>
+<li><strong>Stereo 3D</strong> of the whole game world at 90 Hz, with sound heard from your head.</li>
+<li><strong>The god hand is your hand:</strong> pick up villagers, trees and rocks by touching them, throw at your hand's speed, catch things in flight, scoop from stores and fields, pet or slap your creature, hand it food.</li>
+<li><strong>The laser</strong> (A) for reaching far: pick up, drag the land, double pull to travel.</li>
+<li><strong>Miracles:</strong> hold B and draw the gesture in the air; pop miracle bubbles, pour miracles from your hand, circle the land for shields and storms.</li>
+<li><strong>Building:</strong> carry a scaffold, see its blueprint below your hand, twist your wrist to turn it.</li>
+<li><strong>The leash:</strong> walk your creature, send it to things, tie it up.</li>
+<li><strong>Moving:</strong> stick to fly, snap turn, rise and descend, grab the world with both hands.</li>
+<li><strong>Cutscenes and menus</strong> on a cinema screen you point at; the temple's rooms on that screen too.</li>
+<li><strong>A tuning panel</strong> above your other hand (stick click) for throwing, grip, touch and more, saved to bwvr.ini.</li>
+</ul>
+<h3>Controls in short</h3>
+<ul>
+<li><strong>Trigger or grip:</strong> pick up and carry. A quick trigger tap: interact.</li>
+<li><strong>A:</strong> laser on/off. <strong>B held:</strong> draw a miracle gesture.</li>
+<li><strong>Other hand:</strong> stick moves you; A opens the game's menu; stick click opens the tuning panel.</li>
+<li><strong>Ctrl+F12</strong> on the keyboard recentres the view.</li>
+</ul>
+  </div>
+</article>
+
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/jmanoclay/Black-and-White-VR/releases/latest/download/JakeypooBWVRModInstaller.exe">Download the installer</a>
+      <a class="btn ghost" href="../">All features and install steps</a>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Black &amp; White VR is a free, unofficial fan project by Jakeypoo. Black &amp; White is © Lionhead Studios / Electronic Arts; this project is not affiliated with or endorsed by them.</p>
+    <p>Visits to this page are counted anonymously with Cloudflare Web Analytics: no cookies, nothing personal.</p>
+  </div>
+</footer>
+<!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "6266ee0a71af4a35b833d4d916b3c45c"}'></script><!-- End Cloudflare Web Analytics -->
+</body>
+</html>
