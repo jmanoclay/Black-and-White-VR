@@ -382,8 +382,79 @@ namespace BwVrSetup
             box.ReadOnly = ro;
         }
 
+        // Fills a box afresh with drawing paused, then shows it from the top in one go. Appending to a
+        // box on screen redraws and scrolls it with every piece, which with all the patch notes took
+        // seconds. With the same key as last time, the box already shows it and is left as it is.
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
+        const int WM_SETREDRAW = 0x000B;
+        // asText: the fill only appends text (Append, Render), so it is written out as one RTF document
+        // and put in at once, far quicker than appending piece by piece (pictures and indents need the box).
+        public static void Fill(RichTextBox box, string key, Action fill, bool asText = false)
+        {
+            if (key != null && Equals(box.Tag, key)) return;
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            bool paused = box.IsHandleCreated && box.Visible; // (turning drawing back on shows a hidden window)
+            if (paused) SendMessage(box.Handle, WM_SETREDRAW, IntPtr.Zero, IntPtr.Zero);
+            try
+            {
+                if (asText)
+                {
+                    rtf = new Rtf(); rtfBox = box;
+                    try { fill(); box.Rtf = rtf.Document(); }
+                    finally { rtf = null; rtfBox = null; }
+                }
+                else { box.Clear(); fill(); }
+                box.SelectionStart = 0; box.SelectionLength = 0; box.ScrollToCaret();
+            }
+            finally
+            {
+                if (paused) { SendMessage(box.Handle, WM_SETREDRAW, (IntPtr)1, IntPtr.Zero); box.Invalidate(); }
+            }
+            box.Tag = key;
+            if (watch.ElapsedMilliseconds >= 100) Log.Write("a page took " + watch.ElapsedMilliseconds + " ms to fill (" + box.TextLength + " characters)");
+        }
+
+        static Rtf rtf; static RichTextBox rtfBox; // while Fill writes a box as one RTF document
+
+        // Text in fonts and colours, written as an RTF document.
+        sealed class Rtf
+        {
+            readonly System.Collections.Generic.List<string> fonts = new System.Collections.Generic.List<string>();
+            readonly System.Collections.Generic.List<Color> colors = new System.Collections.Generic.List<Color>();
+            readonly System.Text.StringBuilder body = new System.Text.StringBuilder();
+
+            public void Add(string text, Font f, Color c)
+            {
+                if (string.IsNullOrEmpty(text)) return;
+                int fi = fonts.IndexOf(f.Name); if (fi < 0) { fi = fonts.Count; fonts.Add(f.Name); }
+                int ci = colors.IndexOf(c); if (ci < 0) { ci = colors.Count; colors.Add(c); }
+                body.Append("{\\f").Append(fi).Append("\\fs").Append((int)Math.Round(f.SizeInPoints * 2))
+                    .Append(f.Bold ? "\\b" : "").Append(f.Italic ? "\\i" : "").Append("\\cf").Append(ci + 1).Append(' ');
+                foreach (char ch in text.Replace("\r", ""))
+                {
+                    if (ch == '\n') body.Append("\\par\n");
+                    else if (ch == '\\' || ch == '{' || ch == '}') body.Append('\\').Append(ch);
+                    else if (ch == '\t') body.Append("\\tab ");
+                    else if (ch < 0x80) body.Append(ch);
+                    else body.Append("\\u").Append((int)(short)ch).Append('?');
+                }
+                body.Append('}');
+            }
+
+            public string Document()
+            {
+                var d = new System.Text.StringBuilder("{\\rtf1\\ansi\\deff0{\\fonttbl");
+                for (int i = 0; i < fonts.Count; i++) d.Append("{\\f").Append(i).Append("\\fnil ").Append(fonts[i]).Append(";}");
+                d.Append("}{\\colortbl;");
+                foreach (var c in colors) d.Append("\\red").Append(c.R).Append("\\green").Append(c.G).Append("\\blue").Append(c.B).Append(';');
+                return d.Append("}\n").Append(body).Append('}').ToString();
+            }
+        }
+
         public static void Append(RichTextBox box, string text, Font f, Color c)
         {
+            if (rtf != null && box == rtfBox) { rtf.Add(text, f, c); return; }
             box.SelectionStart = box.TextLength;
             box.SelectionLength = 0;
             box.SelectionFont = f;

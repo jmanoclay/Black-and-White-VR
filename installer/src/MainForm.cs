@@ -42,9 +42,7 @@ namespace BwVrSetup
         {
             if (!features.IsHandleCreated || features.ClientSize.Width == featuresWidth) return;
             featuresWidth = features.ClientSize.Width;
-            features.Clear();
-            Notes.RenderPage(features, BuiltIn("BwVrSetup.features.md"));
-            features.SelectionStart = 0; features.ScrollToCaret();
+            Notes.Fill(features, null, () => Notes.RenderPage(features, BuiltIn("BwVrSetup.features.md")));
         }
 
         // For screenshots: the shown tab scrolled so that the text is at the top.
@@ -364,40 +362,47 @@ namespace BwVrSetup
             if (NeedsAdmin() && game.Ready) main = AdminBtn();
             rowMod.SetButtons(menu, main);
 
-            // Patch notes
-            notes.Clear();
-            if (releases != null && releases.Count > 0)
+            // Patch notes: built again only when what they show has changed (the list, the installed version).
+            var notesKey = new System.Text.StringBuilder(feedError ?? "").Append('|').Append(rec != null ? rec.version : "").Append('|');
+            if (releases == null) notesKey.Append("loading");
+            else foreach (var r in releases)
+                if (!r.Prerelease || Settings.Current.ShowBetas) notesKey.Append(r.Version).Append(r.Title).Append(r.Date).Append(r.Notes).Append('|');
+            Notes.Fill(notes, notesKey.ToString(), () =>
             {
-                foreach (var r in releases)
-                    if (!r.Prerelease || Settings.Current.ShowBetas)
-                        Notes.Render(notes, r.Version, r.Title, r.Date, Notes.WithoutKnownIssues(r.Notes),
-                                     rec != null && rec.version == r.Version);
-                notes.SelectionStart = 0; notes.ScrollToCaret();
-            }
-            else Notes.Append(notes,
-                feedError != null ? "Patch notes couldn't be loaded:\n" + feedError + "\n\nRelease feed: " + Settings.Current.EffectiveFeed :
-                releases != null ? "No releases have been published yet. They will appear here, newest first." : "Loading…",
-                Theme.Body, Theme.Dim);
+                if (releases != null && releases.Count > 0)
+                {
+                    foreach (var r in releases)
+                        if (!r.Prerelease || Settings.Current.ShowBetas)
+                            Notes.Render(notes, r.Version, r.Title, r.Date, Notes.WithoutKnownIssues(r.Notes),
+                                         rec != null && rec.version == r.Version);
+                }
+                else Notes.Append(notes,
+                    feedError != null ? "Patch notes couldn't be loaded:\n" + feedError + "\n\nRelease feed: " + Settings.Current.EffectiveFeed :
+                    releases != null ? "No releases have been published yet. They will appear here, newest first." : "Loading…",
+                    Theme.Body, Theme.Dim);
+            }, true);
 
             // Known issues: the newest release's own list, so it can change with each release.
-            issues.Clear();
             Release newest = null;
             if (releases != null)
                 foreach (var r in releases)
                     if (!r.Prerelease || Settings.Current.ShowBetas) { newest = r; break; }
-            if (newest != null)
+            string issuesKey = newest != null ? newest.Version + "|" + newest.Notes : (feedError ?? "") + "|" + (releases != null ? "none" : "loading");
+            Notes.Fill(issues, issuesKey, () =>
             {
-                string list = Notes.KnownIssues(newest.Notes);
-                Notes.Append(issues, list == null ? "No known issues are listed for version " + newest.Version + "."
-                                                  : "Known issues in version " + newest.Version + ". They're being worked on.\n\n",
-                             Theme.Small, Theme.Dim);
-                if (list != null) Notes.RenderPage(issues, list);
-                issues.SelectionStart = 0; issues.ScrollToCaret();
-            }
-            else Notes.Append(issues,
-                feedError != null ? "The known issues couldn't be loaded:\n" + feedError :
-                releases != null ? "No releases have been published yet." : "Loading…",
-                Theme.Body, Theme.Dim);
+                if (newest != null)
+                {
+                    string list = Notes.KnownIssues(newest.Notes);
+                    Notes.Append(issues, list == null ? "No known issues are listed for version " + newest.Version + "."
+                                                      : "Known issues in version " + newest.Version + ". They're being worked on.\n\n",
+                                 Theme.Small, Theme.Dim);
+                    if (list != null) Notes.RenderPage(issues, list);
+                }
+                else Notes.Append(issues,
+                    feedError != null ? "The known issues couldn't be loaded:\n" + feedError :
+                    releases != null ? "No releases have been published yet." : "Loading…",
+                    Theme.Body, Theme.Dim);
+            });
 
             // Controls: the installed mod's own list (bwvr\controls.md), else the one built into the installer.
             string installed = game.Version == GameVersion.Missing ? null : Path.Combine(game.BwvrDir, "controls.md");
@@ -406,10 +411,8 @@ namespace BwVrSetup
             {
                 string md = null;
                 try { md = from == "(built in)" ? BuiltInControls() : File.ReadAllText(from); } catch (Exception e) { Log.Write("controls not readable: " + e.Message); }
-                controls.Clear();
-                Notes.RenderControls(controls, md ?? BuiltInControls(),
-                    from == "(built in)" ? (rec != null ? null : "The controls of the latest version. Once the mod is installed, this shows your version's.") : null);
-                controls.SelectionStart = 0; controls.ScrollToCaret();
+                Notes.Fill(controls, null, () => Notes.RenderControls(controls, md ?? BuiltInControls(),
+                    from == "(built in)" ? (rec != null ? null : "The controls of the latest version. Once the mod is installed, this shows your version's.") : null));
                 controlsShownFrom = from;
                 controlsTime = from == "(built in)" ? DateTime.MinValue : File.GetLastWriteTime(from);
             }
